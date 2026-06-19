@@ -1,0 +1,86 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+    
+    - name: Install root dependencies
+      run: npm ci
+    
+    - name: Build frontend
+      run: npm run build
+    
+    - name: Install server dependencies
+      run: cd server && npm ci
+    
+    - name: Build server
+      run: cd server && npm run build
+    
+    - name: Start server (background)
+      run: |
+        cd server
+        nohup npm start > ../server.log 2>&1 &
+        echo $! > ../server.pid
+        sleep 2
+    
+    - name: Wait for HTTP API
+      run: |
+        for attempt in {1..20}; do
+          if curl -fsS http://localhost:3001/api/recruitment-book > /dev/null; then
+            echo "✅ HTTP API is ready"
+            exit 0
+          fi
+
+          if ! ps -p $(cat server.pid) > /dev/null; then
+            echo "❌ Server process exited before becoming ready"
+            cat server.log
+            exit 1
+          fi
+
+          echo "Waiting for HTTP API... attempt ${attempt}/20"
+          sleep 2
+        done
+
+        echo "❌ Timed out waiting for HTTP API"
+        cat server.log
+        exit 1
+
+    - name: Smoke test endpoints
+      run: |
+        echo "Checking UI and API endpoints..."
+        curl -fsS http://localhost:3001/ > /dev/null
+        curl -fsS http://localhost:3001/api/recruitment-book > /dev/null
+        curl -fsS http://localhost:3001/api/guild-snapshot > /dev/null
+
+    - name: Check WebSocket port
+      run: |
+        node -e "const net=require('net'); const socket=net.connect(3000,'127.0.0.1',()=>{console.log('✅ WebSocket TCP port is reachable'); socket.end();}); socket.on('error',(error)=>{console.error('❌ WebSocket TCP port is not reachable'); console.error(error.message); process.exit(1);});"
+    
+    - name: Show server logs
+      if: always()
+      run: |
+        echo "=== Server Logs ==="
+        cat server.log
+    
+    - name: Stop server
+      if: always()
+      run: |
+        if [ -f server.pid ] && ps -p $(cat server.pid) > /dev/null; then
+          kill $(cat server.pid)
+          echo "Stopped server process $(cat server.pid)"
+        fi
