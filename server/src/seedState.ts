@@ -174,6 +174,7 @@ export function createBootstrapState(): GuildBootstrapState {
     delegations: [
       {
         id: 'delegation-founder-guide',
+        title: 'Guild Founder → Guild Guide coordination mandate',
         memberId: 'member-founder',
         agentId: 'agent-guide',
         scopes: ['PUBLISH_QUEST', 'ACCEPT_QUEST', 'COORDINATE_PARTY'],

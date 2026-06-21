@@ -150,6 +150,7 @@ export interface GuildParty {
 
 export interface GuildDelegation {
   id: string;
+  title?: string;
   memberId: string;
   agentId: string;
   scopes: DelegationScope[];
@@ -176,6 +177,7 @@ export interface PartyBeaconResponse {
   id: string;
   beaconId: string;
   responderDid: string;
+  responderLabel?: string;
   message: string;
   offeredSkills: string[];
   contactPolicy: 'AGENT_RELAY' | 'DIRECT_AFTER_ACCEPT' | 'PUBLIC';
@@ -188,6 +190,7 @@ export interface PartyBeacon {
   questId?: string;
   partyId?: string;
   publisherDid: string;
+  publisherLabel?: string;
   title: string;
   intent: string;
   lookingFor: string[];
@@ -202,7 +205,7 @@ export interface PartyBeacon {
 export interface CreatePartyBeaconPayload {
   questId?: string;
   partyId?: string;
-  publisherDid: string;
+  publisherDid?: string;
   title: string;
   intent: string;
   lookingFor?: string[];
@@ -212,7 +215,7 @@ export interface CreatePartyBeaconPayload {
 }
 
 export interface RespondToPartyBeaconPayload {
-  responderDid: string;
+  responderDid?: string;
   message: string;
   offeredSkills?: string[];
   contactPolicy?: PartyBeaconResponse['contactPolicy'];
@@ -250,6 +253,7 @@ export interface JoinGuildAgentInput {
 }
 
 export interface JoinGuildDelegationInput {
+  title?: string;
   scopes: DelegationScope[];
   operatingNote?: string;
   status?: 'ACTIVE' | 'PAUSED';
@@ -270,7 +274,8 @@ export interface RecruitmentBookPacket {
     recruitmentEndpoint: string;
     joinEndpoint: string;
     partyBeaconsEndpoint: string;
-    a2aWebSocketEndpoint: string;
+    a2aRelayEndpoint: string;
+    a2aWebSocketEndpoint?: string;
   };
   websocket: {
     getBookMessageType: 'get_recruitment_book';

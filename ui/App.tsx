@@ -12,6 +12,7 @@ import { AdminOpsConsole } from './components/AdminOpsConsole';
 import { guildV1Demo } from './data/guildV1Demo';
 import {
   createPartyBeacon,
+  fetchAdminGuildSnapshot,
   fetchGuildSnapshot,
   fetchRecruitmentBook,
   joinGuild,
@@ -34,13 +35,16 @@ function App() {
     setIsSyncing(true);
 
     try {
-      const [nextSnapshot, nextBook] = await Promise.all([fetchGuildSnapshot(), fetchRecruitmentBook()]);
+      const [nextSnapshot, nextBook] = await Promise.all([
+        isAdminRoute ? fetchAdminGuildSnapshot() : fetchGuildSnapshot(),
+        fetchRecruitmentBook(),
+      ]);
       setSnapshot(nextSnapshot);
       setRecruitmentBook(nextBook);
-      setConnectionNote('已连接后端，当前展示公开 guild snapshot。');
+      setConnectionNote(isAdminRoute ? '已连接后端，当前展示管理员完整 snapshot。' : '已连接后端，当前展示公开 guild snapshot。');
     } catch (error) {
       console.error(error);
-      setConnectionNote('后端未连接，当前回退到本地 demo 数据。');
+      setConnectionNote(isAdminRoute ? '管理员完整快照不可用，请确认后台登录状态。' : '后端未连接，当前回退到本地 demo 数据。');
     } finally {
       setIsSyncing(false);
     }
@@ -74,9 +78,8 @@ function App() {
     beaconId: string,
     responseId: string,
     status: PartyBeaconResponse['status'],
-    reviewerDid: string,
   ) => {
-    const nextSnapshot = await reviewPartyBeaconResponse(beaconId, responseId, status, reviewerDid);
+    const nextSnapshot = await reviewPartyBeaconResponse(beaconId, responseId, status);
     setSnapshot(nextSnapshot);
     setConnectionNote('组队响应状态已经更新。');
   };

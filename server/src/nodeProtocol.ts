@@ -14,6 +14,7 @@ export function buildGuildNodeProtocolPacket(): GuildNodeProtocolPacket {
       protocol: '/api/node-protocol',
       guildSnapshot: '/api/guild-snapshot',
       agentJoin: '/api/agent/applications',
+      a2aRelay: '/api/a2a/relay',
     },
     messages: {
       registerGateway: {

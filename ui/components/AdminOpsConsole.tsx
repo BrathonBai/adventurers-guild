@@ -72,7 +72,7 @@ export function AdminOpsConsole({ snapshot, connectionNote, onRefresh }: {
             </div>
           </AdminSection>
 
-          <AdminSection title="Party Beacon Queue" eyebrow="Antenna-like discovery">
+          <AdminSection title="Party Beacon Queue" eyebrow="Party discovery">
             <div className="space-y-3">
               {snapshot.partyBeacons.length === 0 && <EmptyAdminState text="No party beacons yet." />}
               {snapshot.partyBeacons.map((beacon) => (
@@ -110,18 +110,22 @@ export function AdminOpsConsole({ snapshot, connectionNote, onRefresh }: {
 
           <AdminSection title="Delegation Ledger" eyebrow="Authorization boundary">
             <div className="grid gap-3 lg:grid-cols-2">
-              {snapshot.delegations.map((delegation) => (
-                <div key={delegation.id} className="border border-black/10 bg-white p-4">
-                  <div className="font-mono text-xs uppercase tracking-[0.24em] text-stone-500">{delegation.status}</div>
-                  <div className="mt-2 break-all font-mono text-xs">{delegation.memberId} {'->'} {delegation.agentId}</div>
-                  <p className="mt-2 text-sm text-stone-700">{delegation.operatingNote}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {delegation.scopes.map((scope) => (
-                      <span key={scope} className="border border-black px-2 py-1 font-mono text-[10px] uppercase">{scope}</span>
-                    ))}
+              {snapshot.delegations.map((delegation) => {
+                const label = delegation.title || `${delegation.memberId} -> ${delegation.agentId}`;
+                return (
+                  <div key={delegation.id} className="border border-black/10 bg-white p-4">
+                    <div className="font-mono text-xs uppercase tracking-[0.24em] text-stone-500">{delegation.status}</div>
+                    <div className="mt-2 text-base font-semibold text-stone-950">{label}</div>
+                    <div className="mt-2 break-all font-mono text-xs text-stone-500">{delegation.memberId} {'->'} {delegation.agentId}</div>
+                    <p className="mt-2 text-sm text-stone-700">{delegation.operatingNote}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {delegation.scopes.map((scope) => (
+                        <span key={scope} className="border border-black px-2 py-1 font-mono text-[10px] uppercase">{scope}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </AdminSection>
         </section>

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomSecret, sha256Hmac, safeEqual } from './cryptoUtils';
+import { AgentApplicationRecord, JoinGuildPayload } from './types';
 
 type DatabaseSync = any;
 
@@ -67,9 +68,28 @@ export class GuildDatabase {
           metadata_json TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS agent_applications (
+          id TEXT PRIMARY KEY,
+          payload_json TEXT NOT NULL,
+          status TEXT NOT NULL,
+          submitted_at INTEGER NOT NULL,
+          reviewed_at INTEGER,
+          reviewer_did TEXT,
+          review_note TEXT,
+          result_agent_id TEXT,
+          credentials_json TEXT
+        );
       `);
+      this.ensureColumn('agent_applications', 'credentials_json', 'TEXT');
       this.db.prepare('INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)').run(1, Date.now());
     });
+  }
+
+  private ensureColumn(tableName: string, columnName: string, definition: string): void {
+    const columns = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === columnName)) {
+      this.db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    }
   }
 
   transaction<T>(work: () => T): T {
@@ -112,6 +132,60 @@ export class GuildDatabase {
     `).run(record.id, record.secretHash, record.subjectDid, record.subjectType, record.role, JSON.stringify(record.scopes), record.createdAt, record.revokedAt ?? null);
 
     return { id, secret, record };
+  }
+
+  createAgentApplication(payload: JoinGuildPayload): AgentApplicationRecord {
+    const record: AgentApplicationRecord = {
+      id: `app_${randomSecret(12)}`,
+      payload,
+      status: 'PENDING_REVIEW',
+      submittedAt: Date.now(),
+    };
+
+    this.db.prepare(`
+      INSERT INTO agent_applications(id, payload_json, status, submitted_at, reviewed_at, reviewer_did, review_note, result_agent_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(record.id, JSON.stringify(payload), record.status, record.submittedAt, null, null, null, null);
+
+    return record;
+  }
+
+  listAgentApplications(status?: AgentApplicationRecord['status']): AgentApplicationRecord[] {
+    const rows = status
+      ? this.db.prepare('SELECT * FROM agent_applications WHERE status = ? ORDER BY submitted_at ASC').all(status)
+      : this.db.prepare('SELECT * FROM agent_applications ORDER BY submitted_at DESC').all();
+    return rows.map((row: Record<string, any>) => this.toAgentApplicationRecord(row));
+  }
+
+  getAgentApplication(id: string): AgentApplicationRecord | undefined {
+    const row = this.db.prepare('SELECT * FROM agent_applications WHERE id = ?').get(id) as Record<string, any> | undefined;
+    return row ? this.toAgentApplicationRecord(row) : undefined;
+  }
+
+  updateAgentApplicationReview(
+    id: string,
+    input: {
+      status: Extract<AgentApplicationRecord['status'], 'APPROVED' | 'DECLINED'>;
+      reviewerDid?: string;
+      reviewNote?: string;
+      resultAgentId?: string;
+      credentials?: AgentApplicationRecord['credentials'];
+    },
+  ): AgentApplicationRecord | undefined {
+    this.db.prepare(`
+      UPDATE agent_applications
+      SET status = ?, reviewed_at = ?, reviewer_did = ?, review_note = ?, result_agent_id = ?, credentials_json = ?
+      WHERE id = ?
+    `).run(
+      input.status,
+      Date.now(),
+      input.reviewerDid ?? null,
+      input.reviewNote ?? null,
+      input.resultAgentId ?? null,
+      input.credentials ? JSON.stringify(input.credentials) : null,
+      id,
+    );
+    return this.getAgentApplication(id);
   }
 
   verifyApiKey(raw: string): StoredApiKey | undefined {
@@ -157,5 +231,19 @@ export class GuildDatabase {
     this.db.exec('PRAGMA wal_checkpoint(FULL)');
     fs.copyFileSync(this.filePath, destination);
     return destination;
+  }
+
+  private toAgentApplicationRecord(row: Record<string, any>): AgentApplicationRecord {
+    return {
+      id: row.id,
+      payload: JSON.parse(row.payload_json),
+      status: row.status,
+      submittedAt: row.submitted_at,
+      reviewedAt: row.reviewed_at ?? undefined,
+      reviewerDid: row.reviewer_did ?? undefined,
+      reviewNote: row.review_note ?? undefined,
+      resultAgentId: row.result_agent_id ?? undefined,
+      credentials: row.credentials_json ? JSON.parse(row.credentials_json) : undefined,
+    };
   }
 }

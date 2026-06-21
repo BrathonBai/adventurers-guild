@@ -85,13 +85,14 @@ type ServerSnapshot = {
     status: 'RECRUITING' | 'ACTIVE' | 'DELIVERING' | 'DISBANDED';
     lookingFor: string[];
   }>;
-  delegations: GuildSnapshot['delegations'];
+  delegations?: GuildSnapshot['delegations'];
   partyBeacons: GuildSnapshot['partyBeacons'];
   activity: GuildActivity[];
 };
 
 type JoinGuildResult = {
   status?: 'PENDING_REVIEW';
+  applicationId?: string;
   snapshot: ServerSnapshot;
 };
 
@@ -101,6 +102,19 @@ export async function fetchGuildSnapshot(): Promise<GuildSnapshot> {
   const response = await fetch('/api/guild-snapshot');
   if (!response.ok) {
     throw new Error(`Failed to fetch guild snapshot: ${response.status}`);
+  }
+
+  const snapshot = (await response.json()) as ServerSnapshot;
+  return adaptSnapshot(snapshot);
+}
+
+export async function fetchAdminGuildSnapshot(): Promise<GuildSnapshot> {
+  const token = readAdminToken();
+  const response = await fetch('/admin-api/guild-snapshot', {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch admin guild snapshot: ${response.status}`);
   }
 
   const snapshot = (await response.json()) as ServerSnapshot;
@@ -170,14 +184,13 @@ export async function reviewPartyBeaconResponse(
   beaconId: string,
   responseId: string,
   status: PartyBeaconResponse['status'],
-  reviewerDid: string,
 ): Promise<GuildSnapshot> {
   const response = await fetch(
     `/api/party-beacons/${encodeURIComponent(beaconId)}/responses/${encodeURIComponent(responseId)}/review`,
     {
       method: 'POST',
       headers: writeHeaders(),
-      body: JSON.stringify({ status, reviewerDid }),
+      body: JSON.stringify({ status }),
     },
   );
 
@@ -228,8 +241,9 @@ function adaptSnapshot(server: ServerSnapshot): GuildSnapshot {
       })),
       openRoles: party.lookingFor,
     })),
-    delegations: server.delegations.map((delegation) => ({
+    delegations: (server.delegations ?? []).map((delegation) => ({
       ...delegation,
+      title: delegation.title ?? '',
       scopes: delegation.scopes as DelegationScope[],
     })),
     partyBeacons: server.partyBeacons ?? [],
@@ -317,4 +331,16 @@ function readStoredApiKey(): string {
     return '';
   }
   return window.localStorage.getItem(GUILD_API_KEY_STORAGE_KEY)?.trim() || '';
+}
+
+function readAdminToken(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return (
+    window.localStorage.getItem('adventurers-guild.adminToken') ||
+    window.localStorage.getItem('guild-admin-token') ||
+    ''
+  ).trim();
 }

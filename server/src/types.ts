@@ -51,6 +51,7 @@ export interface GuildAgentProfile {
 
 export interface GuildDelegationRecord {
   id: string;
+  title?: string;
   memberId: string;
   agentId: string;
   scopes: Array<
@@ -79,6 +80,7 @@ export interface PartyBeaconResponse {
   id: string;
   beaconId: string;
   responderDid: string;
+  responderLabel?: string;
   message: string;
   offeredSkills: string[];
   contactPolicy: 'AGENT_RELAY' | 'DIRECT_AFTER_ACCEPT' | 'PUBLIC';
@@ -91,6 +93,7 @@ export interface PartyBeacon {
   questId?: string;
   partyId?: string;
   publisherDid: string;
+  publisherLabel?: string;
   title: string;
   intent: string;
   lookingFor: string[];
@@ -105,7 +108,7 @@ export interface PartyBeacon {
 export interface CreatePartyBeaconPayload {
   questId?: string;
   partyId?: string;
-  publisherDid: string;
+  publisherDid?: string;
   title: string;
   intent: string;
   lookingFor?: string[];
@@ -115,7 +118,7 @@ export interface CreatePartyBeaconPayload {
 }
 
 export interface RespondToPartyBeaconPayload {
-  responderDid: string;
+  responderDid?: string;
   message: string;
   offeredSkills?: string[];
   contactPolicy?: PartyBeaconResponse['contactPolicy'];
@@ -277,6 +280,7 @@ export interface JoinGuildAgentPayload {
 }
 
 export interface JoinGuildDelegationPayload {
+  title?: string;
   scopes: GuildDelegationRecord['scopes'];
   operatingNote?: string;
   status?: GuildDelegationRecord['status'];
@@ -286,6 +290,22 @@ export interface JoinGuildPayload {
   member?: JoinGuildMemberPayload;
   agent: JoinGuildAgentPayload;
   delegation?: JoinGuildDelegationPayload;
+}
+
+export interface AgentApplicationRecord {
+  id: string;
+  payload: JoinGuildPayload;
+  status: 'PENDING_REVIEW' | 'APPROVED' | 'DECLINED';
+  submittedAt: number;
+  reviewedAt?: number;
+  reviewerDid?: string;
+  reviewNote?: string;
+  resultAgentId?: string;
+  credentials?: {
+    apiKey: string;
+    keyId: string;
+    subjectDid: string;
+  };
 }
 
 export interface GuildJoinResult {
@@ -309,7 +329,8 @@ export interface RecruitmentBookPacket {
     recruitmentEndpoint: string;
     joinEndpoint: string;
     partyBeaconsEndpoint: string;
-    a2aWebSocketEndpoint: string;
+    a2aRelayEndpoint: string;
+    a2aWebSocketEndpoint?: string;
   };
   websocket: {
     getBookMessageType: 'get_recruitment_book';
@@ -331,6 +352,7 @@ export interface GuildNodeProtocolPacket {
     protocol: string;
     guildSnapshot: string;
     agentJoin: string;
+    a2aRelay: string;
   };
   messages: {
     registerGateway: Record<string, unknown>;

@@ -20,7 +20,7 @@ import {
   RespondToPartyBeaconPayload,
 } from '../../types';
 
-type CommandTab = 'overview' | 'quests' | 'agents' | 'beacons' | 'parties' | 'delegation' | 'blueprint';
+type CommandTab = 'overview' | 'quests' | 'agents' | 'beacons' | 'parties';
 
 interface GuildCommandCenterProps {
   snapshot: GuildSnapshot;
@@ -35,7 +35,6 @@ interface GuildCommandCenterProps {
     beaconId: string,
     responseId: string,
     status: PartyBeaconResponse['status'],
-    reviewerDid: string,
   ) => Promise<void>;
 }
 
@@ -118,8 +117,6 @@ export const GuildCommandCenter = ({
               />
             )}
             {activeTab === 'parties' && <PartyPanel snapshot={snapshot} />}
-            {activeTab === 'delegation' && <DelegationPanel snapshot={snapshot} />}
-            {activeTab === 'blueprint' && <BlueprintPanel />}
           </div>
         </div>
       </div>
@@ -152,7 +149,7 @@ const HeroSection = ({
           一个真正为人类与 Agent 共存设计的冒险者协会
         </h1>
         <p className="mt-4 text-slate-300 text-lg leading-relaxed">
-          这里的成员不是单独行动的账号，而是带着自己的 Agent、信誉、授权关系和协作历史进入社区。
+          这里的成员不是单独行动的账号，而是带着自己的 Agent、信誉和协作历史进入社区。
           委托、组队、交付和仲裁都围绕这个世界观展开。
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -212,10 +209,8 @@ const NavRail = ({
     { id: 'overview', label: '总览', description: '协会的当前状态与活动流' },
     { id: 'quests', label: '委托', description: '社区如何发布、接取与组队' },
     { id: 'agents', label: 'Agent', description: '个人 Agent 与自由 Agent 的位置' },
-    { id: 'beacons', label: '广播', description: '像 Antenna 一样喊人组队' },
+    { id: 'beacons', label: '广播', description: '临时喊话与组队邀约' },
     { id: 'parties', label: '队伍', description: '冒险队是如何围绕任务形成的' },
-    { id: 'delegation', label: '授权', description: '谁可以代表谁行动' },
-    { id: 'blueprint', label: '蓝图', description: 'v1 最小闭环与后续演进' },
   ];
 
   return (
@@ -255,7 +250,7 @@ const OverviewPanel = ({
   <div className="space-y-6">
     <JoinGuildPanel recruitmentBook={recruitmentBook} onJoinGuild={onJoinGuild} isSyncing={isSyncing} />
 
-    <SectionCard title="协会世界观" subtitle="v1 的核心不是页面，而是社区里真实存在的角色和关系。">
+    <SectionCard title="协会世界观" subtitle="v1 的核心不是页面，而是社区里真实存在的角色与协作状态。">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <ConceptCard
           title="会员 Member"
@@ -267,15 +262,15 @@ const OverviewPanel = ({
         />
         <ConceptCard
           title="委托 Quest"
-          body="任何成员或 Agent 都能发布委托，但平台必须记录是谁发布、代表谁发布、期望谁来完成。"
+          body="任何已审核身份都能发布委托；公开大厅只需要呈现目标、需求、进度和组队状态。"
         />
         <ConceptCard
           title="队伍 Party"
           body="围绕委托形成的临时协作单位，可能是人、Agent，或混合编队。"
         />
         <ConceptCard
-          title="授权 Delegation"
-          body="决定一个 Agent 能否替会员发布、接取、谈判和交付，这是信任和治理的关键。"
+          title="治理 Governance"
+          body="平台在后台处理身份、权限、审计和仲裁；公开大厅只展示协作所需的信息。"
         />
         <ConceptCard
           title="信誉 Reputation"
@@ -305,7 +300,7 @@ const OverviewPanel = ({
 );
 
 const QuestPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
-  <SectionCard title="委托大厅" subtitle="v1 中的 quest 不再只是卡片，它要描述代理关系、组队需求和信任前提。">
+  <SectionCard title="委托大厅" subtitle="v1 中的 quest 不再只是卡片，它要描述目标、组队需求和信任前提。">
     <div className="space-y-4">
       {snapshot.quests.map((quest) => (
         <motion.div
@@ -388,7 +383,11 @@ const QuestPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
 );
 
 const AgentPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
-  <SectionCard title="Agent Registry" subtitle="Agent 在这个世界里是可追溯的执行单元，而不是隐藏在用户后面的黑箱。">
+  <SectionCard title="Agent Registry" subtitle="公开大厅只展示可协作发现的 Agent；管理员级平台 Agent 留在内部运营面。">
+    <div className="mb-5 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-4 text-sm leading-relaxed text-cyan-100">
+      协会作为第三方通信 broker 建立 A2A 链路：公开页面只展示可协作发现的身份和能力，消息通过协会 relay 转发，
+      不把用户、Agent 私有地址或平台内部运维身份直接交给浏览者。
+    </div>
     <div className="grid gap-4 xl:grid-cols-2">
       {snapshot.agents.map((agent) => (
         <div key={agent.id} className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
@@ -396,11 +395,11 @@ const AgentPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
             <div>
               <div className="text-sm uppercase tracking-[0.28em] text-slate-500">{agent.handle}</div>
               <h3 className="text-2xl font-semibold text-white mt-2">{agent.displayName}</h3>
-              <div className="mt-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 font-mono text-xs text-cyan-100 break-all">
-                {agent.did}
+              <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-300">
+                公开登记号：{agent.id}
               </div>
-              <div className="mt-2 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-2 font-mono text-xs text-fuchsia-100 break-all">
-                {agent.connectionUri}
+              <div className="mt-2 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                A2A 通信由协会中继，不公开端点
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Tag label={agent.classification} tone={classificationTone(agent.classification)} />
@@ -414,8 +413,6 @@ const AgentPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
               <div className="text-sm text-amber-300">{tierLabel(agent.reputation.tier)}</div>
             </div>
           </div>
-
-          <p className="text-slate-300 mt-4 leading-relaxed">{agent.operatorNotes}</p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {agent.capabilities.map((capability) => (
@@ -443,20 +440,14 @@ const PartyBeaconPanel = ({
     beaconId: string,
     responseId: string,
     status: PartyBeaconResponse['status'],
-    reviewerDid: string,
   ) => Promise<void>;
 }) => {
-  const identityOptions = getIdentityOptions(snapshot);
-  const defaultDid = identityOptions[0]?.did || '';
-  const [publisherDid, setPublisherDid] = useState(defaultDid);
   const [title, setTitle] = useState('Need a UI trailblazer');
   const [questId, setQuestId] = useState(snapshot.quests[0]?.id || '');
   const [intent, setIntent] = useState('We are forming a party and need one more contributor.');
   const [lookingFor, setLookingFor] = useState('UI trailblazer, React builder');
   const [requiredSkills, setRequiredSkills] = useState('React, interaction design');
   const [ttlHours, setTtlHours] = useState('24');
-  const [responderDidByBeacon, setResponderDidByBeacon] = useState<Record<string, string>>({});
-  const [reviewerDidByBeacon, setReviewerDidByBeacon] = useState<Record<string, string>>({});
   const [responseMessageByBeacon, setResponseMessageByBeacon] = useState<Record<string, string>>({});
   const [responseSkillsByBeacon, setResponseSkillsByBeacon] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
@@ -482,7 +473,6 @@ const PartyBeaconPanel = ({
 
     try {
       await onCreatePartyBeacon({
-        publisherDid,
         questId: questId || undefined,
         title,
         intent,
@@ -500,14 +490,12 @@ const PartyBeaconPanel = ({
   };
 
   const respond = async (beaconId: string) => {
-    const responderDid = responderDidByBeacon[beaconId] || defaultDid;
     const message = responseMessageByBeacon[beaconId] || 'I am interested in joining this party.';
     setIsSubmitting(true);
     setFeedback('');
 
     try {
       await onRespondToPartyBeacon(beaconId, {
-        responderDid,
         message,
         offeredSkills: splitCsv(responseSkillsByBeacon[beaconId] || ''),
         contactPolicy: 'AGENT_RELAY',
@@ -521,12 +509,11 @@ const PartyBeaconPanel = ({
   };
 
   const review = async (beaconId: string, responseId: string, status: PartyBeaconResponse['status']) => {
-    const reviewerDid = reviewerDidByBeacon[beaconId] || snapshot.partyBeacons.find((beacon) => beacon.id === beaconId)?.publisherDid || defaultDid;
     setIsSubmitting(true);
     setFeedback('');
 
     try {
-      await onReviewPartyBeaconResponse(beaconId, responseId, status, reviewerDid);
+      await onReviewPartyBeaconResponse(beaconId, responseId, status);
       setFeedback(status === 'ACCEPTED' ? '已接受该响应。' : '已拒绝该响应。');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : '更新响应状态失败。');
@@ -537,7 +524,7 @@ const PartyBeaconPanel = ({
 
   return (
     <div className="space-y-6">
-      <SectionCard title="组队广播" subtitle="参考 Antenna 的临时发现机制：写操作需要已审核 Agent 的 API Key，并且 DID 必须匹配该身份。">
+      <SectionCard title="组队广播" subtitle="用于临时发现队友与发起组队邀约；写操作需要已审核身份的 API Key。">
         <div className="mb-5 rounded-3xl border border-white/10 bg-black/20 p-4">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
             <Field label="Agent API Key">
@@ -562,13 +549,9 @@ const PartyBeaconPanel = ({
           </p>
         </div>
         <form onSubmit={createBeacon} className="grid gap-4 xl:grid-cols-2">
-          <Field label="发布者 DID">
-            <select value={publisherDid} onChange={(event) => setPublisherDid(event.target.value)} className={inputClassName}>
-              {identityOptions.map((identity) => (
-                <option key={identity.did} value={identity.did}>{identity.label}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="rounded-3xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+            发布身份由当前保存的 Agent API Key 决定，不在公开页面展示 DID 或连接地址。
+          </div>
           <Field label="关联委托">
             <select value={questId} onChange={(event) => setQuestId(event.target.value)} className={inputClassName}>
               <option value="">不关联具体委托</option>
@@ -595,7 +578,7 @@ const PartyBeaconPanel = ({
             </Field>
           </div>
           <div className="xl:col-span-2 flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={isSubmitting || !publisherDid} className="rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-6 py-3 font-semibold text-slate-950 disabled:opacity-60">
+            <button type="submit" disabled={isSubmitting} className="rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-6 py-3 font-semibold text-slate-950 disabled:opacity-60">
               发布组队广播
             </button>
             {feedback && <span className="text-sm text-slate-300">{feedback}</span>}
@@ -607,7 +590,7 @@ const PartyBeaconPanel = ({
         <div className="space-y-4">
           {snapshot.partyBeacons.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-slate-400">
-              暂无组队广播。发布一个广播后，其他 DID 身份就可以响应。
+              暂无组队广播。发布一个广播后，其他已审核身份就可以响应。
             </div>
           )}
           {snapshot.partyBeacons.map((beacon) => (
@@ -620,7 +603,7 @@ const PartyBeaconPanel = ({
                   </div>
                   <h3 className="mt-3 text-2xl font-semibold text-white">{beacon.title}</h3>
                   <p className="mt-2 text-slate-300 leading-relaxed">{beacon.intent}</p>
-                  <div className="mt-3 font-mono text-xs text-cyan-100 break-all">{beacon.publisherDid}</div>
+                  <div className="mt-3 text-sm text-cyan-100">发布者：{beacon.publisherLabel || '已审核身份'}</div>
                   <div className="mt-3 text-sm text-slate-400">过期时间：{formatDateTime(beacon.expiresAt)}</div>
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-4 lg:w-72">
@@ -639,17 +622,9 @@ const PartyBeaconPanel = ({
               <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-4 space-y-3">
                   <div className="text-white font-semibold">响应这个广播</div>
-                  <Field label="响应者 DID">
-                    <select
-                      value={responderDidByBeacon[beacon.id] || defaultDid}
-                      onChange={(event) => setResponderDidByBeacon((current) => ({ ...current, [beacon.id]: event.target.value }))}
-                      className={inputClassName}
-                    >
-                      {identityOptions.map((identity) => (
-                        <option key={identity.did} value={identity.did}>{identity.label}</option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-3 text-sm text-cyan-100">
+                    响应身份由当前保存的 Agent API Key 决定。
+                  </div>
                   <Field label="响应说明">
                     <textarea
                       value={responseMessageByBeacon[beacon.id] || ''}
@@ -678,24 +653,16 @@ const PartyBeaconPanel = ({
 
                 <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
                   <div className="text-white font-semibold mb-3">响应列表</div>
-                  <Field label="审核者 DID">
-                    <select
-                      value={reviewerDidByBeacon[beacon.id] || beacon.publisherDid}
-                      onChange={(event) => setReviewerDidByBeacon((current) => ({ ...current, [beacon.id]: event.target.value }))}
-                      className={inputClassName}
-                    >
-                      {identityOptions.map((identity) => (
-                        <option key={identity.did} value={identity.did}>{identity.label}</option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="mb-3 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-3 text-sm text-fuchsia-100">
+                    审核身份由当前保存的 Agent API Key 决定，且必须有权限处理该广播。
+                  </div>
                   <div className="space-y-3">
                     {beacon.responses.length === 0 && <div className="text-sm text-slate-400">还没有响应。</div>}
                     {beacon.responses.map((response) => (
                       <div key={response.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                           <div>
-                            <div className="font-mono text-xs text-cyan-100 break-all">{response.responderDid}</div>
+                            <div className="text-sm text-cyan-100">{response.responderLabel || '已审核身份'}</div>
                             <p className="mt-2 text-sm text-slate-300">{response.message}</p>
                           </div>
                           <Tag label={response.status} tone="text-emerald-200 bg-emerald-500/10 border-emerald-400/20" />
@@ -789,58 +756,6 @@ const PartyPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
   </SectionCard>
 );
 
-const DelegationPanel = ({ snapshot }: { snapshot: GuildSnapshot }) => (
-  <SectionCard title="代理授权" subtitle="Agent 之所以能进入协会，不是因为它们像工具，而是因为平台知道它们能代表谁做什么。">
-    <div className="grid gap-4 xl:grid-cols-2">
-      {snapshot.delegations.map((delegation) => {
-        const member = snapshot.members.find((item) => item.id === delegation.memberId);
-        const agent = snapshot.agents.find((item) => item.id === delegation.agentId);
-
-        return (
-          <div key={delegation.id} className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-slate-400 text-sm">授权关系</div>
-                <h3 className="text-2xl font-semibold text-white mt-1">
-                  {member?.displayName} → {agent?.displayName}
-                </h3>
-                <div className="mt-3 space-y-2 font-mono text-xs text-cyan-100">
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 break-all">
-                    {member?.did || delegation.memberId}
-                  </div>
-                  {member?.connectionUri && (
-                    <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 break-all">
-                      {member.connectionUri}
-                    </div>
-                  )}
-                  <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-2 break-all">
-                    {agent?.did || delegation.agentId}
-                  </div>
-                  {agent?.connectionUri && (
-                    <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/5 px-3 py-2 break-all">
-                      {agent.connectionUri}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <Tag label={delegation.status} tone="text-emerald-200 bg-emerald-500/10 border-emerald-400/20" />
-            </div>
-
-            <p className="text-slate-300 mt-4 leading-relaxed">{delegation.operatingNote}</p>
-
-            <div className="mt-4 text-white font-semibold">可代理范围</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {delegation.scopes.map((scope) => (
-                <Tag key={scope} label={scopeLabel(scope)} tone="text-cyan-200 bg-cyan-500/10 border-cyan-400/20" />
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </SectionCard>
-);
-
 const JoinGuildPanel = ({
   recruitmentBook,
   onJoinGuild,
@@ -869,8 +784,9 @@ const JoinGuildPanel = ({
     DelegationScope.COORDINATE_PARTY,
   ]);
   const [delegationNote, setDelegationNote] = useState(
-    'Guild Guide may publish quests and coordinate parties for Guild Founder.',
+    'Agent may coordinate accepted quests and return delivery results within the approved scopes.',
   );
+  const [delegationTitle, setDelegationTitle] = useState('可选代理权限声明');
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [feedback, setFeedback] = useState('');
 
@@ -905,6 +821,7 @@ const JoinGuildPanel = ({
       delegation:
         useDelegation && selectedScopes.length > 0
           ? {
+              title: delegationTitle,
               scopes: selectedScopes,
               operatingNote: delegationNote,
               status: 'ACTIVE',
@@ -915,7 +832,7 @@ const JoinGuildPanel = ({
     try {
       await onJoinGuild(payload);
       setSubmitState('success');
-      setFeedback('入会申请已提交，管理员审核后会创建身份、授权记录并签发 Agent API Key。');
+      setFeedback('入会申请已提交，管理员审核后会创建身份、权限记录并签发 Agent API Key。');
     } catch (error) {
       console.error(error);
       setSubmitState('error');
@@ -1033,11 +950,14 @@ const JoinGuildPanel = ({
           <div className="border-t border-white/10 pt-5 space-y-4">
             <label className="flex items-center gap-3 text-slate-200">
               <input type="checkbox" checked={useDelegation} onChange={(event) => setUseDelegation(event.target.checked)} />
-              创建 delegation 授权
+              提交可选代理权限声明
             </label>
 
             {useDelegation && (
               <>
+                <Field label="权限声明标题">
+                  <input value={delegationTitle} onChange={(event) => setDelegationTitle(event.target.value)} className={inputClassName} />
+                </Field>
                 <div className="flex flex-wrap gap-2">
                   {Object.values(DelegationScope).map((scope) => (
                     <button
@@ -1054,7 +974,7 @@ const JoinGuildPanel = ({
                     </button>
                   ))}
                 </div>
-                <Field label="授权说明">
+                <Field label="权限说明">
                   <textarea value={delegationNote} onChange={(event) => setDelegationNote(event.target.value)} rows={3} className={inputClassName} />
                 </Field>
               </>
@@ -1092,36 +1012,6 @@ const JoinGuildPanel = ({
     </SectionCard>
   );
 };
-
-const BlueprintPanel = () => (
-  <SectionCard title="v1 最小闭环" subtitle="这个闭环是项目继续前进时最应该保护的东西。">
-    <div className="grid gap-4 xl:grid-cols-2">
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
-        <h3 className="text-xl font-semibold text-white">MVP 流程</h3>
-        <ol className="mt-4 space-y-3 text-slate-300">
-          <li>1. 会员加入协会并创建个人档案。</li>
-          <li>2. 会员绑定自己的 Agent，声明 Agent 的能力与授权范围。</li>
-          <li>3. 会员或 Agent 发布委托，明确需求、奖励、信任前提和编队需求。</li>
-          <li>4. 人类成员、个人 Agent、自由 Agent 进入委托并组成队伍。</li>
-          <li>5. 队伍围绕任务推进、同步状态、完成交付。</li>
-          <li>6. 协会记录信誉、争议和后续合作历史。</li>
-        </ol>
-      </div>
-
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
-        <h3 className="text-xl font-semibold text-white">接下来代码应该围绕的模块</h3>
-        <div className="mt-4 space-y-3 text-slate-300">
-          <div>1. `members`：会员档案、身份、信誉。</div>
-          <div>2. `agents`：Agent 注册、在线状态、授权与拥有关系。</div>
-          <div>3. `quests`：委托生命周期、接取与需求建模。</div>
-          <div>4. `parties`：队伍编组、角色空缺、协作推进。</div>
-          <div>5. `delegations`：代理权限和审计轨迹。</div>
-          <div>6. `governance`：合规、仲裁、信用修正。</div>
-        </div>
-      </div>
-    </div>
-  </SectionCard>
-);
 
 const SectionCard = ({
   title,
@@ -1199,7 +1089,7 @@ function scopeLabel(scope: DelegationScope): string {
   const labels: Record<DelegationScope, string> = {
     [DelegationScope.PUBLISH_QUEST]: '发布委托',
     [DelegationScope.ACCEPT_QUEST]: '接取委托',
-    [DelegationScope.NEGOTIATE]: '代表谈判',
+    [DelegationScope.NEGOTIATE]: '谈判沟通',
     [DelegationScope.COORDINATE_PARTY]: '协调队伍',
     [DelegationScope.DELIVER_RESULTS]: '提交交付',
   };
@@ -1229,19 +1119,6 @@ function resolveUnitName(
   }
 
   return agents.find((agent) => agent.id === unitId)?.displayName || unitId;
-}
-
-function getIdentityOptions(snapshot: GuildSnapshot): Array<{ did: string; label: string }> {
-  return [
-    ...snapshot.members.map((member) => ({
-      did: member.did,
-      label: `Member · ${member.displayName} · ${member.did}`,
-    })),
-    ...snapshot.agents.map((agent) => ({
-      did: agent.did,
-      label: `Agent · ${agent.displayName} · ${agent.did}`,
-    })),
-  ];
 }
 
 function formatDateTime(timestamp: number): string {

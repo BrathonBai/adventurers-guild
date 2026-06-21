@@ -14,7 +14,7 @@ import {
   PartyBeaconResponse,
   RespondToPartyBeaconPayload,
 } from './types';
-import { Application, GuildState } from './GuildState';
+import { Application, GuildState, QuestAcceptanceError } from './GuildState';
 import {
   normalizeRequiredMembers,
   readMessageData,
@@ -29,6 +29,13 @@ import { principalFromApiKey, verifyDidSignature } from './auth';
 import { AuthPrincipal } from './auth';
 
 type MessageHandler = (ws: WebSocket, message: IncomingMessage) => void;
+
+type RelayPayload = {
+  toAgentId?: string;
+  type?: string;
+  context?: GuildA2AMessage['context'];
+  payload?: unknown;
+};
 
 /**
  * Adventurer's Guild runtime:
@@ -238,17 +245,19 @@ export class GuildServer {
       capabilities: agent.capabilities,
     });
 
-    this.broadcast(
-      {
-        type: 'new_member',
-        data: {
-          agentId,
-          name: agent.name,
-          capabilities: agent.capabilities,
+    if (this.isPubliclyDiscoverableAgentId(agentId)) {
+      this.broadcast(
+        {
+          type: 'new_member',
+          data: {
+            agentId,
+            name: agent.name,
+            capabilities: agent.capabilities,
+          },
         },
-      },
-      agentId,
-    );
+        agentId,
+      );
+    }
   }
 
   private handlePublishQuest(ws: WebSocket, message: IncomingMessage): void {
@@ -280,8 +289,16 @@ export class GuildServer {
     };
 
     this.state.quests.set(questId, quest);
+    const party = this.state.ensurePartyForQuest(quest);
     this.state.save();
-    this.state.audit({ actorDid: agent.did, actorRole: agent.role, action: 'CREATE_QUEST', targetType: 'quest', targetId: questId });
+    this.state.audit({
+      actorDid: agent.did,
+      actorRole: agent.role,
+      action: 'CREATE_QUEST',
+      targetType: 'quest',
+      targetId: questId,
+      metadata: { partyId: party.id },
+    });
 
     console.log(`📝 Quest published: ${quest.title} (${questId})`);
 
@@ -337,67 +354,48 @@ export class GuildServer {
 
     const questId = readString(message.data?.questId);
     const role = readString(message.data?.role);
-    const quest = questId ? this.state.quests.get(questId) : undefined;
-
-    if (!quest) {
-      this.sendError(ws, 'QUEST_NOT_FOUND', 'Quest not found');
+    if (!agent.did) {
+      this.sendError(ws, 'DID_REQUIRED', 'Agent DID is required to accept a quest');
       return;
     }
 
-    if (quest.status !== 'OPEN' && quest.status !== 'FORMING_PARTY') {
-      this.sendError(ws, 'QUEST_NOT_OPEN', 'Quest is not open for acceptance');
-      return;
-    }
-
-    if (quest.teamMembers.includes(agent.id)) {
-      this.sendError(ws, 'ALREADY_IN_TEAM', 'You are already in this quest team');
-      return;
-    }
-
-    const requiredMember = quest.requiredMembers.find((member) => member.role === role);
-    if (!requiredMember) {
-      this.sendError(ws, 'ROLE_NOT_FOUND', 'Role not found in quest requirements');
-      return;
-    }
-
-    if (requiredMember.filled >= requiredMember.count) {
-      this.sendError(ws, 'ROLE_FILLED', 'This role is already filled');
-      return;
-    }
-
-    quest.teamMembers.push(agent.id);
-    requiredMember.filled += 1;
-    if (quest.status === 'OPEN') {
-      quest.status = 'FORMING_PARTY';
-    }
-
-    if (quest.requiredMembers.every((member) => member.filled >= member.count)) {
-      quest.status = 'IN_PROGRESS';
-    }
-    this.state.save();
-
-    console.log(`✅ ${agent.name} accepted quest ${quest.id} as ${role}`);
-
-    this.sendToWs(ws, {
-      type: 'quest_accepted',
-      questId: quest.id,
-      role,
-      teamMembers: quest.teamMembers,
-    });
-
-    quest.teamMembers.forEach((memberId) => {
-      if (memberId !== agent.id) {
-        this.sendToAgent(memberId, {
-          type: 'team_member_joined',
-          questId: quest.id,
-          data: {
-            agentId: agent.id,
-            name: agent.name,
-            role,
-          },
-        });
+    try {
+      const result = questId ? this.state.acceptQuest(questId, agent.did, role, agent.role) : undefined;
+      if (!result) {
+        this.sendError(ws, 'QUEST_NOT_FOUND', 'Quest not found');
+        return;
       }
-    });
+
+      console.log(`✅ ${agent.name} accepted quest ${result.quest.id} as ${result.role}`);
+
+      this.sendToWs(ws, {
+        type: 'quest_accepted',
+        questId: result.quest.id,
+        role: result.role,
+        teamMembers: result.quest.teamMembers,
+      });
+
+      result.quest.teamMembers.forEach((memberId) => {
+        if (memberId !== agent.id) {
+          this.sendToAgent(memberId, {
+            type: 'team_member_joined',
+            questId: result.quest.id,
+            data: {
+              agentId: agent.id,
+              name: agent.name,
+              role: result.role,
+            },
+          });
+        }
+      });
+    } catch (error) {
+      if (error instanceof QuestAcceptanceError) {
+        this.sendError(ws, error.code, error.message);
+        return;
+      }
+
+      throw error;
+    }
   }
 
   private handleInviteToQuest(ws: WebSocket, message: IncomingMessage): void {
@@ -568,6 +566,7 @@ export class GuildServer {
   private handleFindAgents(ws: WebSocket, message: IncomingMessage): void {
     const skill = readOptionalString(message.data?.skill)?.toLowerCase();
     const agents = Array.from(this.state.agentProfiles.values())
+      .filter((agent) => this.state.isPubliclyDiscoverableAgent(agent))
       .filter((agent) => {
         if (!skill) {
           return true;
@@ -590,10 +589,11 @@ export class GuildServer {
     });
   }
 
-  private handleGetGuildSnapshot(ws: WebSocket, _message: IncomingMessage): void {
+  private handleGetGuildSnapshot(ws: WebSocket, message: IncomingMessage): void {
+    const principal = this.authenticateWs(message);
     this.sendToWs(ws, {
       type: 'guild_snapshot',
-      snapshot: this.state.createSnapshot(),
+      snapshot: principal?.role === 'ADMIN' ? this.state.createSnapshot() : this.state.createPublicSnapshot(),
     });
   }
 
@@ -649,18 +649,20 @@ export class GuildServer {
       result,
     });
 
-    this.broadcast(
-      {
-        type: 'new_member',
-        data: {
-          agentId: result.agent.id,
-          name: result.agent.displayName,
-          capabilities: result.agent.capabilities,
-          ownerMemberId: result.member?.id,
+    if (this.isPubliclyDiscoverableAgentId(result.agent.id)) {
+      this.broadcast(
+        {
+          type: 'new_member',
+          data: {
+            agentId: result.agent.id,
+            name: result.agent.displayName,
+            capabilities: result.agent.capabilities,
+            ownerMemberId: result.member?.id,
+          },
         },
-      },
-      result.agent.id,
-    );
+        result.agent.id,
+      );
+    }
   }
 
   private handleCreateParty(ws: WebSocket, message: IncomingMessage): void {
@@ -1260,13 +1262,15 @@ export class GuildServer {
     this.state.markAgentOffline(agent.id);
     this.wsBuckets.delete(ws);
 
-    this.broadcast({
-      type: 'agent_left',
-      data: {
-        agentId: agent.id,
-        name: agent.name,
-      },
-    });
+    if (this.isPubliclyDiscoverableAgentId(agent.id)) {
+      this.broadcast({
+        type: 'agent_left',
+        data: {
+          agentId: agent.id,
+          name: agent.name,
+        },
+      });
+    }
   }
 
   private heartbeat(): void {
@@ -1323,6 +1327,87 @@ export class GuildServer {
     return this.state.listPartyBeacons();
   }
 
+  public listPublicPartyBeacons() {
+    return this.state.listPublicPartyBeacons();
+  }
+
+  private isPubliclyDiscoverableAgentId(agentId: string): boolean {
+    const profile = this.state.agentProfiles.get(agentId);
+    return profile ? this.state.isPubliclyDiscoverableAgent(profile) : true;
+  }
+
+  public relayA2AMessage(fromDid: string, input: RelayPayload) {
+    const from = this.state.getUnitByDid(fromDid);
+    if (!from) {
+      return { status: 'REJECTED', code: 'SENDER_NOT_FOUND', message: 'Authenticated guild identity was not found' };
+    }
+
+    const targetAgentId = readString(input.toAgentId);
+    if (!targetAgentId) {
+      return { status: 'REJECTED', code: 'TARGET_REQUIRED', message: 'toAgentId is required' };
+    }
+
+    const targetProfile = this.state.agentProfiles.get(targetAgentId);
+    if (!targetProfile) {
+      return { status: 'REJECTED', code: 'TARGET_NOT_FOUND', message: 'Target agent was not found in the guild registry' };
+    }
+
+    const envelope: GuildA2AMessage = {
+      protocol: 'guild-a2a',
+      version: 'v1',
+      id: uuidv4(),
+      type: readString(input.type) || 'guild.relay.message',
+      fromDid,
+      toDid: targetProfile.did,
+      context: input.context,
+      payload: typeof input.payload === 'undefined' ? {} : input.payload,
+      createdAt: Date.now(),
+    };
+
+    const target = this.state.liveAgents.get(targetAgentId);
+    if (!target || target.ws.readyState !== WebSocket.OPEN) {
+      this.state.activityFeed.unshift({
+        id: `activity-${Date.now()}`,
+        kind: 'A2A_MESSAGE_RELAYED',
+        title: `${from.displayName} 请求协会中继消息`,
+        detail: `${targetProfile.displayName} 当前未在线，协会保留通信上下文。`,
+        timestampLabel: 'just now',
+      });
+      return {
+        status: 'QUEUED',
+        relayId: envelope.id,
+        targetAgentId,
+        targetLabel: targetProfile.displayName,
+        message: 'Target agent is not connected; no endpoint information was disclosed.',
+      };
+    }
+
+    this.sendToAgent(target.id, {
+      type: 'a2a_message',
+      message: envelope,
+      relay: {
+        broker: 'adventurers-guild',
+        directEndpointDisclosed: false,
+      },
+    });
+
+    this.state.activityFeed.unshift({
+      id: `activity-${Date.now()}`,
+      kind: 'A2A_MESSAGE_RELAYED',
+      title: `${from.displayName} 通过协会中继联系 ${targetProfile.displayName}`,
+      detail: envelope.context?.partyId || envelope.context?.questId || envelope.context?.beaconId || 'guild relay message',
+      timestampLabel: 'just now',
+    });
+
+    return {
+      status: 'DELIVERED',
+      relayId: envelope.id,
+      targetAgentId,
+      targetLabel: targetProfile.displayName,
+      message: 'Message relayed through the guild broker; no endpoint information was disclosed.',
+    };
+  }
+
   public createPartyBeacon(payload: CreatePartyBeaconPayload) {
     return this.state.createPartyBeacon(payload);
   }
@@ -1338,6 +1423,10 @@ export class GuildServer {
     reviewerDid: string,
   ) {
     return this.state.reviewPartyBeaconResponse(beaconId, responseId, status, reviewerDid);
+  }
+
+  public acceptQuest(questId: string, actorDid: string, role: string, actorRole?: string) {
+    return this.state.acceptQuest(questId, actorDid, role, actorRole);
   }
 
   public resolveDidDocument(did: string, publicBaseUrl: string) {

@@ -4,24 +4,25 @@ import { JoinGuildPayload, RecruitmentBookPacket } from './types';
 
 const exampleJoinPayload: JoinGuildPayload = {
   member: {
-    displayName: 'Guild Founder',
-    handle: '@founder',
-    role: 'HYBRID',
-    bio: 'Human guild member working with personal agents.',
-    specialties: ['product design', 'system architecture'],
-    homeRegion: 'Community Hub',
+    displayName: 'Your Human Operator',
+    handle: '@your-operator',
+    role: 'BUILDER',
+    bio: 'Human member represented by this personal agent.',
+    specialties: ['product design', 'research'],
+    homeRegion: 'Remote',
   },
   agent: {
-    displayName: 'Guild Guide',
-    handle: '@guild-guide',
+    displayName: 'Circuit Cartographer',
+    handle: '@circuit-cartographer',
     classification: 'PERSONAL',
     autonomy: 'DELEGATED',
-    capabilities: ['quest planning', 'party coordination', 'prompt engineering'],
-    operatorNotes: 'Acts as the member\'s guild-facing strategist and coordinator.',
+    capabilities: ['technical research', 'implementation planning', 'status reporting'],
+    operatorNotes: 'Represents the operator for bounded guild coordination and delivery planning.',
   },
   delegation: {
-    scopes: ['PUBLISH_QUEST', 'ACCEPT_QUEST', 'COORDINATE_PARTY'],
-    operatingNote: 'Guild Guide may publish quests and coordinate parties for Guild Founder.',
+    title: 'Your Human Operator → Circuit Cartographer delivery mandate',
+    scopes: ['ACCEPT_QUEST', 'COORDINATE_PARTY', 'DELIVER_RESULTS'],
+    operatingNote: 'Circuit Cartographer may coordinate accepted quests and return delivery results for its operator.',
     status: 'ACTIVE',
   },
 };
@@ -32,6 +33,9 @@ export function loadRecruitmentMarkdown(): string {
 }
 
 export function buildRecruitmentBookPacket(): RecruitmentBookPacket {
+  const wsHost = process.env.NETWORK_HOST || 'localhost';
+  const wsPort = process.env.PORT || '3000';
+
   return {
     name: 'Adventurer\'s Guild Recruitment Book',
     version: 'v1',
@@ -42,7 +46,8 @@ export function buildRecruitmentBookPacket(): RecruitmentBookPacket {
       recruitmentEndpoint: '/api/recruitment-book',
       joinEndpoint: '/api/agent/applications',
       partyBeaconsEndpoint: '/api/party-beacons',
-      a2aWebSocketEndpoint: 'ws://localhost:3000',
+      a2aRelayEndpoint: '/api/a2a/relay',
+      a2aWebSocketEndpoint: `ws://${wsHost}:${wsPort}`,
     },
     websocket: {
       getBookMessageType: 'get_recruitment_book',

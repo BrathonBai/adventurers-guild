@@ -27,7 +27,7 @@ function stringArray(value: unknown, name: string): string[] | undefined {
 
 export function validateCreatePartyBeacon(input: any): CreatePartyBeaconPayload {
   return {
-    publisherDid: requiredString(input?.publisherDid, 'publisherDid'),
+    publisherDid: stringField(input?.publisherDid, 'publisherDid', false),
     title: requiredString(input?.title, 'title'),
     intent: requiredString(input?.intent, 'intent'),
     questId: stringField(input?.questId, 'questId', false),
@@ -41,7 +41,7 @@ export function validateCreatePartyBeacon(input: any): CreatePartyBeaconPayload 
 
 export function validateBeaconResponse(input: any): RespondToPartyBeaconPayload {
   return {
-    responderDid: requiredString(input?.responderDid, 'responderDid'),
+    responderDid: stringField(input?.responderDid, 'responderDid', false),
     message: requiredString(input?.message, 'message'),
     offeredSkills: stringArray(input?.offeredSkills, 'offeredSkills'),
     contactPolicy: ['AGENT_RELAY', 'DIRECT_AFTER_ACCEPT', 'PUBLIC'].includes(input?.contactPolicy) ? input.contactPolicy : undefined,
@@ -77,6 +77,13 @@ export function validateJoinGuild(input: any): JoinGuildPayload {
       capabilities: stringArray(input.agent.capabilities, 'agent.capabilities') || [],
       operatorNotes: stringField(input.agent.operatorNotes, 'agent.operatorNotes', false),
     },
-    delegation: delegationScopes.length > 0 ? { scopes: delegationScopes, operatingNote: stringField(input.delegation?.operatingNote, 'delegation.operatingNote', false), status: 'ACTIVE' } : undefined,
+    delegation: delegationScopes.length > 0
+      ? {
+          title: stringField(input.delegation?.title, 'delegation.title', false),
+          scopes: delegationScopes,
+          operatingNote: stringField(input.delegation?.operatingNote, 'delegation.operatingNote', false),
+          status: 'ACTIVE',
+        }
+      : undefined,
   };
 }

@@ -3,8 +3,9 @@ import * as os from 'os';
 import * as path from 'path';
 import WebSocket = require('ws');
 import { GuildServer } from '../GuildServer';
-import { GuildState } from '../GuildState';
+import { GuildState, QuestAcceptanceError } from '../GuildState';
 import { sha256Hmac, stableStringify } from '../cryptoUtils';
+import { GuildQuest } from '../types';
 
 function makeState() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guild-state-'));
@@ -61,6 +62,191 @@ describe('GuildState product flows', () => {
     ).toThrow('publisherDid is not a registered guild DID');
   });
 
+  it('redacts sensitive identifiers, addresses, and operator notes from the public snapshot', () => {
+    const { state } = makeState();
+    const beacon = state.createPartyBeacon({
+      publisherDid: 'did:guild:agent:guild-guide',
+      title: 'Public beacon',
+      intent: 'Find a visible but privacy-safe collaborator.',
+      visibility: 'PUBLIC',
+    });
+    state.respondToPartyBeacon(beacon.id, {
+      responderDid: 'did:guild:agent:scout',
+      message: 'I can help.',
+    });
+
+    const snapshot = state.createPublicSnapshot();
+    const serialized = JSON.stringify(snapshot);
+
+    expect(snapshot.members?.every((member) => member.did === '')).toBe(true);
+    expect(snapshot.members?.every((member) => member.connectionUri === '')).toBe(true);
+    expect(snapshot.members?.every((member) => member.agentIds.length === 0)).toBe(true);
+    expect(snapshot.agents?.every((agent) => agent.did === '')).toBe(true);
+    expect(snapshot.agents?.every((agent) => agent.connectionUri === '')).toBe(true);
+    expect(snapshot.agents?.every((agent) => agent.operatorNotes === '')).toBe(true);
+    expect(snapshot.quests?.every((quest) => quest.publisherMemberId === undefined)).toBe(true);
+    expect(snapshot.quests?.every((quest) => quest.publisherAgentId === undefined)).toBe(true);
+    expect(snapshot.delegations ?? []).toEqual([]);
+    expect(snapshot.partyBeacons?.[0]?.publisherDid).toBe('');
+    expect(snapshot.partyBeacons?.[0]?.publisherLabel).toBe('Guild Guide');
+    expect(snapshot.partyBeacons?.[0]?.responses[0]?.responderDid).toBe('');
+    expect(snapshot.partyBeacons?.[0]?.responses[0]?.responderLabel).toBe('Scout-17');
+    expect(snapshot.activity?.some((entry) => entry.title.includes('did:guild'))).toBe(false);
+    expect(snapshot.activity?.some((entry) => entry.title.includes('代表'))).toBe(false);
+    expect(serialized).not.toContain('ownerMemberId');
+    expect(serialized).not.toContain('publisherMemberId');
+    expect(serialized).not.toContain('publisherAgentId');
+  });
+
+  it('omits administrator-grade platform agents from public projections', () => {
+    const { state } = makeState();
+    state.agentProfiles.set('agent-guild-registrar', {
+      id: 'agent-guild-registrar',
+      did: 'did:guild:agent:guild-registrar',
+      connectionUri: 'guild://agent/guild-registrar',
+      handle: '@guild-registrar',
+      displayName: 'Guild Registrar',
+      classification: 'GUILD_SERVICE',
+      autonomy: 'SUPERVISED',
+      availability: 'IDLE',
+      operatorNotes: 'Internal registrar administrator agent.',
+      capabilities: ['credential issuance coordination', 'human escalation'],
+      reputation: {
+        score: 700,
+        tier: 'ELITE',
+        badges: ['registrar'],
+        completedQuests: 0,
+        reliability: 95,
+      },
+    });
+    state.quests.set('QUEST-PRIVATE-OPS', {
+      id: 'QUEST-PRIVATE-OPS',
+      title: 'Internal registrar runbook',
+      description: 'Keep the registrar operational without exposing its identity.',
+      publisherId: 'agent-guild-registrar',
+      publisherAgentId: 'agent-guild-registrar',
+      requiredMembers: [],
+      subtasks: [{ title: 'Rotate checklist', estimatedHours: 1, description: 'Internal', assignedTo: 'agent-guild-registrar' }],
+      status: 'OPEN',
+      teamMembers: ['agent-guild-registrar', 'agent-guide'],
+      createdAt: Date.now(),
+    });
+    state.parties.set('party-private-ops', {
+      id: 'party-private-ops',
+      questId: 'QUEST-PRIVATE-OPS',
+      name: 'Internal registrar party',
+      leaderId: 'agent-guild-registrar',
+      leaderType: 'AGENT',
+      members: [
+        {
+          userId: 'agent-guild-registrar',
+          role: 'Registrar',
+          skills: ['credential issuance coordination'],
+          status: 'ACTIVE',
+          joinedAt: Date.now(),
+          unitType: 'AGENT',
+        },
+        {
+          userId: 'agent-guide',
+          role: 'Visible collaborator',
+          skills: ['quest planning'],
+          status: 'ACTIVE',
+          joinedAt: Date.now(),
+          unitType: 'AGENT',
+        },
+      ],
+      maxSize: 2,
+      status: 'ACTIVE',
+      lookingFor: [],
+      requiredSkills: [],
+      createdAt: Date.now(),
+    });
+    state.delegations.set('delegation-founder-steward', {
+      id: 'delegation-founder-steward',
+      memberId: 'member-founder',
+      agentId: 'agent-guild-steward',
+      scopes: ['COORDINATE_PARTY'],
+      status: 'ACTIVE',
+      operatingNote: 'Internal steward mandate',
+    });
+    state.activityFeed.unshift({
+      id: 'activity-private-agent',
+      kind: 'AGENT_JOINED',
+      title: 'Guild Registrar completed administrator setup',
+      detail: '@guild-registrar is ready at did:guild:agent:guild-registrar.',
+      timestampLabel: 'just now',
+    });
+    state.partyBeacons.set('beacon-private-publisher', {
+      id: 'beacon-private-publisher',
+      publisherDid: 'did:guild:agent:guild-registrar',
+      publisherLabel: 'Guild Registrar',
+      title: 'Internal call',
+      intent: 'Internal only',
+      lookingFor: [],
+      requiredSkills: [],
+      visibility: 'PUBLIC',
+      status: 'OPEN',
+      expiresAt: Date.now() + 60_000,
+      createdAt: Date.now(),
+      responses: [],
+    });
+    state.partyBeacons.set('beacon-public-with-private-response', {
+      id: 'beacon-public-with-private-response',
+      publisherDid: 'did:guild:agent:guild-guide',
+      title: 'Visible call',
+      intent: 'Find a collaborator',
+      lookingFor: [],
+      requiredSkills: [],
+      visibility: 'PUBLIC',
+      status: 'OPEN',
+      expiresAt: Date.now() + 60_000,
+      createdAt: Date.now(),
+      responses: [
+        {
+          id: 'response-private-agent',
+          beaconId: 'beacon-public-with-private-response',
+          responderDid: 'did:guild:agent:guild-registrar',
+          responderLabel: 'Guild Registrar',
+          message: 'Internal follow-up',
+          offeredSkills: ['credential issuance coordination'],
+          contactPolicy: 'AGENT_RELAY',
+          status: 'PENDING',
+          createdAt: Date.now(),
+        },
+      ],
+    });
+
+    const snapshot = state.createPublicSnapshot();
+    const serialized = JSON.stringify(snapshot);
+
+    expect(snapshot.agents?.map((agent) => agent.id)).not.toEqual(
+      expect.arrayContaining(['agent-guild-steward', 'agent-guild-registrar']),
+    );
+    expect(snapshot.members?.every((member) => member.agentIds.length === 0)).toBe(true);
+    expect(snapshot.delegations ?? []).toEqual([]);
+    expect(snapshot.quests?.find((quest) => quest.id === 'QUEST-PRIVATE-OPS')?.publisherAgentId).toBeUndefined();
+    expect(snapshot.quests?.find((quest) => quest.id === 'QUEST-PRIVATE-OPS')?.publisherMemberId).toBeUndefined();
+    expect(snapshot.quests?.find((quest) => quest.id === 'QUEST-PRIVATE-OPS')?.teamMembers).toEqual(['agent-guide']);
+    expect(snapshot.quests?.find((quest) => quest.id === 'QUEST-PRIVATE-OPS')?.subtasks[0].assignedTo).toBeUndefined();
+    expect(snapshot.parties?.find((party) => party.id === 'party-private-ops')?.leaderId).toBe('agent-guide');
+    expect(snapshot.parties?.find((party) => party.id === 'party-private-ops')?.members).toEqual([
+      expect.objectContaining({ userId: 'agent-guide' }),
+    ]);
+    expect(snapshot.partyBeacons?.some((beacon) => beacon.id === 'beacon-private-publisher')).toBe(false);
+    expect(
+      snapshot.partyBeacons?.find((beacon) => beacon.id === 'beacon-public-with-private-response')?.responses,
+    ).toEqual([]);
+    expect(snapshot.activity?.some((entry) => entry.id === 'activity-private-agent')).toBe(false);
+    expect(serialized).not.toContain('Guild Registrar');
+    expect(serialized).not.toContain('Guild Steward');
+    expect(serialized).not.toContain('@guild-registrar');
+    expect(serialized).not.toContain('agent-guild-registrar');
+    expect(serialized).not.toContain('agent-guild-steward');
+    expect(serialized).not.toContain('ownerMemberId');
+    expect(serialized).not.toContain('publisherMemberId');
+    expect(serialized).not.toContain('publisherAgentId');
+  });
+
   it('creates a party when a beacon response is accepted', () => {
     const { state } = makeState();
     const join = state.joinGuild({
@@ -100,6 +286,113 @@ describe('GuildState product flows', () => {
     const party = Array.from(state.parties.values()).find((item) => item.id === updatedBeacon?.partyId);
     expect(party?.members.some((member) => member.userId === join.agent.id)).toBe(true);
     expect(state.quests.get('QUEST-2026-001')?.partyId).toBe(updatedBeacon?.partyId);
+  });
+
+  it('creates a forming party for every quest that is missing one', () => {
+    const { state } = makeState();
+    const quest: GuildQuest = {
+      id: 'QUEST-TEST-PARTY',
+      title: 'Design a better guild workspace',
+      description: 'Make every quest visibly gather its execution unit.',
+      publisherId: 'agent-guide',
+      publisherAgentId: 'agent-guide',
+      requiredMembers: [
+        {
+          role: 'UX designer',
+          count: 1,
+          filled: 0,
+          skills: ['information architecture'],
+        },
+        {
+          role: 'Frontend implementation agent',
+          count: 1,
+          filled: 0,
+          skills: ['React'],
+        },
+      ],
+      subtasks: [],
+      status: 'FORMING_PARTY' as const,
+      teamMembers: ['agent-guide'],
+      createdAt: Date.now(),
+    };
+
+    state.quests.set(quest.id, quest);
+    const party = state.ensurePartyForQuest(quest);
+
+    expect(quest.partyId).toBe(party.id);
+    expect(party.questId).toBe(quest.id);
+    expect(party.status).toBe('RECRUITING');
+    expect(party.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: 'agent-guide', role: 'Quest coordinator', unitType: 'AGENT' }),
+      ]),
+    );
+    expect(party.lookingFor).toEqual(['UX designer', 'Frontend implementation agent']);
+    expect(party.name).toContain(quest.title);
+  });
+
+  it('accepts a quest role by DID and mirrors the accepted unit into the party', () => {
+    const { state } = makeState();
+    const join = state.joinGuild({
+      agent: {
+        displayName: 'Quest Taker',
+        handle: '@quest-taker',
+        capabilities: ['React', 'visual QA'],
+      },
+    });
+    const partyId = 'party-acceptance-test';
+
+    state.parties.set(partyId, {
+      id: partyId,
+      questId: 'QUEST-TEST-ACCEPT',
+      name: 'Acceptance Test Party',
+      leaderId: 'agent-guide',
+      leaderType: 'AGENT',
+      members: [],
+      maxSize: 4,
+      status: 'RECRUITING',
+      lookingFor: ['Frontend implementation agent'],
+      requiredSkills: ['React'],
+      createdAt: Date.now(),
+    });
+    state.quests.set('QUEST-TEST-ACCEPT', {
+      id: 'QUEST-TEST-ACCEPT',
+      title: 'Build a better guild frontend',
+      description: 'Ship a better web UI for the guild.',
+      publisherId: 'agent-guide',
+      requiredMembers: [
+        {
+          role: 'Frontend implementation agent',
+          count: 2,
+          filled: 0,
+          skills: ['React'],
+        },
+      ],
+      subtasks: [],
+      status: 'OPEN',
+      teamMembers: [],
+      createdAt: Date.now(),
+      partyId,
+    });
+
+    const accepted = state.acceptQuest('QUEST-TEST-ACCEPT', join.agent.did, 'Frontend implementation agent', 'AGENT');
+
+    expect(accepted?.acceptedUnit.id).toBe(join.agent.id);
+    expect(accepted?.quest.status).toBe('FORMING_PARTY');
+    expect(accepted?.quest.requiredMembers[0].filled).toBe(1);
+    expect(accepted?.quest.teamMembers).toContain(join.agent.id);
+    expect(accepted?.party?.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: join.agent.id,
+          role: 'Frontend implementation agent',
+          unitType: 'AGENT',
+        }),
+      ]),
+    );
+    expect(() => state.acceptQuest('QUEST-TEST-ACCEPT', join.agent.did, 'Frontend implementation agent', 'AGENT')).toThrow(
+      QuestAcceptanceError,
+    );
   });
 
   it('persists and reloads guild state from disk', () => {
@@ -179,8 +472,8 @@ describe('GuildServer WebSocket protocol flows', () => {
   let server: GuildServer | undefined;
   const sockets: WebSocket[] = [];
 
-  afterEach(() => {
-    sockets.forEach((socket) => socket.close());
+  afterEach(async () => {
+    await Promise.all(sockets.map((socket) => closeSocket(socket)));
     sockets.length = 0;
     server?.close();
     server = undefined;
@@ -258,12 +551,98 @@ describe('GuildServer WebSocket protocol flows', () => {
     expect(error.code).toBe('NOT_REGISTERED');
   });
 
+  it('relays A2A through the guild broker without disclosing endpoint details', async () => {
+    const port = 39102;
+    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    const senderKey = server.getDatabase().createApiKey({
+      subjectDid: 'did:guild:agent:guild-guide',
+      subjectType: 'AGENT',
+      role: 'AGENT',
+      scopes: ['COORDINATE_PARTY'],
+    });
+    const targetKey = server.getDatabase().createApiKey({
+      subjectDid: 'did:guild:agent:ember',
+      subjectType: 'AGENT',
+      role: 'AGENT',
+      scopes: ['ACCEPT_QUEST'],
+    });
+    const target = await connectSocket(port);
+    const sender = await connectSocket(port);
+
+    target.send(JSON.stringify({ type: 'register', apiKey: targetKey.secret, name: 'Ember Buildsmith' }));
+    await waitForMessage(target, (message) => message.type === 'registered');
+
+    sender.send(JSON.stringify({ type: 'register', apiKey: senderKey.secret, name: 'Guild Guide' }));
+    await waitForMessage(sender, (message) => message.type === 'registered');
+
+    const result = server.relayA2AMessage('did:guild:agent:guild-guide', {
+      toAgentId: 'agent-ember',
+      type: 'guild.message',
+      payload: { text: 'Hello through the broker.' },
+    });
+    const relayed = await waitForMessage(target, (message) => message.type === 'a2a_message');
+
+    expect(result.status).toBe('DELIVERED');
+    expect(JSON.stringify(result)).not.toContain('did:guild');
+    expect(JSON.stringify(result)).not.toContain('guild://');
+    expect(relayed.relay).toEqual(expect.objectContaining({ directEndpointDisclosed: false }));
+    expect(relayed.message.toDid).toBe('did:guild:agent:ember');
+  });
+
+  it('keeps administrator-grade agents out of public WebSocket discovery and snapshots', async () => {
+    const port = 39103;
+    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    const registrar = server.joinGuildFromApi({
+      agent: {
+        displayName: 'Guild Registrar',
+        handle: '@guild-registrar',
+        classification: 'GUILD_SERVICE',
+        autonomy: 'SUPERVISED',
+        capabilities: ['credential issuance coordination', 'human escalation'],
+      },
+    });
+    const adminKey = server.getDatabase().createApiKey({
+      subjectDid: registrar.agent.did,
+      subjectType: 'ADMIN',
+      role: 'ADMIN',
+      scopes: ['ADMIN'],
+    });
+    const socket = await connectSocket(port);
+
+    socket.send(JSON.stringify({ type: 'find_agents' }));
+    const found = await waitForMessage(socket, (message) => message.type === 'agents_found');
+
+    socket.send(JSON.stringify({ type: 'get_guild_snapshot' }));
+    const publicSnapshot = await waitForMessage(socket, (message) => message.type === 'guild_snapshot');
+
+    socket.send(JSON.stringify({ type: 'get_guild_snapshot', apiKey: adminKey.secret }));
+    const adminSnapshot = await waitForMessage(socket, (message) => message.type === 'guild_snapshot');
+
+    expect(JSON.stringify(found)).not.toContain('Guild Registrar');
+    expect(JSON.stringify(publicSnapshot.snapshot)).not.toContain('Guild Registrar');
+    expect(JSON.stringify(publicSnapshot.snapshot)).not.toContain('@guild-registrar');
+    expect(JSON.stringify(publicSnapshot.snapshot)).not.toContain(registrar.agent.id);
+    expect(JSON.stringify(adminSnapshot.snapshot)).toContain('Guild Registrar');
+    expect(JSON.stringify(adminSnapshot.snapshot)).toContain(registrar.agent.id);
+  });
+
   function connectSocket(port: number): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(`ws://127.0.0.1:${port}`);
       sockets.push(socket);
       socket.once('open', () => resolve(socket));
       socket.once('error', reject);
+    });
+  }
+
+  function closeSocket(socket: WebSocket): Promise<void> {
+    if (socket.readyState === WebSocket.CLOSED) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      socket.once('close', () => resolve());
+      socket.close();
     });
   }
 
