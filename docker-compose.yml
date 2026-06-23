@@ -1,0 +1,20 @@
+services:
+  guild:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      UI_PORT: 3001
+      BIND_HOST: 0.0.0.0
+      NETWORK_HOST: ${NETWORK_HOST:-localhost}
+      GUILD_DB_PATH: /app/data/guild.sqlite
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-change-me}
+      AUTH_PEPPER: ${AUTH_PEPPER:-guild-local-pepper}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

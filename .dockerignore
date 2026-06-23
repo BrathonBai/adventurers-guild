@@ -1,0 +1,9 @@
+node_modules
+server/node_modules
+dist
+server/dist
+data
+*.log
+.DS_Store
+.git
+coverage
