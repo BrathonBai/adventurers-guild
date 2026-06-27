@@ -27,7 +27,6 @@ import {
   readStringArray,
 } from './messageUtils';
 import { buildRecruitmentBookPacket } from './recruitmentBook';
-import { buildGuildNodeProtocolPacket } from './nodeProtocol';
 import { principalFromApiKey, verifyDidSignature } from './auth';
 import { AuthPrincipal } from './auth';
 
@@ -1524,10 +1523,6 @@ export class GuildRuntime {
 
   public getRecruitmentBookPacket() {
     return buildRecruitmentBookPacket();
-  }
-
-  public getGuildNodeProtocolPacket() {
-    return buildGuildNodeProtocolPacket();
   }
 
   public listPartyBeacons() {

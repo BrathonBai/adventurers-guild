@@ -56,10 +56,6 @@ app.post('/admin-api/backup', requireAdmin, (_req, res) => {
   res.json({ backupPath: guildRuntime.getDatabase().backup() });
 });
 
-app.get('/api/node-protocol', (_req, res) => {
-  res.json(guildRuntime.getGuildNodeProtocolPacket());
-});
-
 app.get('/api/did/:did', requireRole('MEMBER', 'AGENT', 'ADMIN'), (req, res) => {
   const publicBaseUrl = `${req.protocol}://${req.get('host')}`;
   const document = guildRuntime.resolveDidDocument(req.params.did, publicBaseUrl);
@@ -458,7 +454,6 @@ httpServer.listen(UI_PORT, BIND_HOST, () => {
   console.log(`📜 Recruitment API: http://${NETWORK_HOST}:${UI_PORT}/api/recruitment-book`);
   console.log(`🪪 Agent Application API: http://${NETWORK_HOST}:${UI_PORT}/api/agent/applications`);
   console.log(`🛡️ Admin API: http://${NETWORK_HOST}:${UI_PORT}/admin-api`);
-  console.log(`🔵 Node Protocol API: http://${NETWORK_HOST}:${UI_PORT}/api/node-protocol`);
 });
 
 // 优雅关闭

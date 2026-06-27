@@ -389,28 +389,6 @@ export interface RecruitmentBookPacket {
   exampleJoinPayload: JoinGuildPayload;
 }
 
-export interface GuildNodeProtocolPacket {
-  name: string;
-  version: string;
-  thesis: string;
-  transport: {
-    gatewayToServer: 'HTTP_JSON' | 'WEBSOCKET_JSON';
-    nodeToGateway: 'BLE_JSON';
-  };
-  endpoints: {
-    protocol: string;
-    guildSnapshot: string;
-    agentJoin: string;
-    a2aRelay: string;
-  };
-  messages: {
-    registerGateway: Record<string, unknown>;
-    registerNode: Record<string, unknown>;
-    nodeEvent: Record<string, unknown>;
-    nodeAction: Record<string, unknown>;
-  };
-}
-
 export interface GuildBootstrapState {
   members: GuildMemberRecord[];
   agents: GuildAgentProfile[];
