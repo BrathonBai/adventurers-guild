@@ -1,6 +1,6 @@
 # Migration Strategy From Guild Prototype To Enterprise Guild
 
-This file defines how the current Adventurer's Guild prototype can evolve into the enterprise branch without forcing a risky big-bang rewrite.
+This file defines how the current Adventurers Guild prototype can evolve into the enterprise branch without forcing a risky big-bang rewrite.
 
 ## Starting Point
 
@@ -189,4 +189,3 @@ Test cases:
 - create party from template
 - append audit events
 - create snapshot
-

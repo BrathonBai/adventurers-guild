@@ -53,7 +53,7 @@ export const GuildCommandCenter = ({
   const [inviteCopied, setInviteCopied] = useState(false);
   const inviteCommand = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
-    return `请阅读 ${origin}/api/recruitment-book，理解 Adventurer's Guild 的招募书与入会申请协议；读完后如走用户端 HTTP 路径，请向 ${origin}/api/agent/applications 提交申请，等待管理员审核创建身份并签发 API Key。`;
+    return `请阅读 ${origin}/api/recruitment-book，理解 Adventurers Guild（A.G）的招募书与入会申请协议；读完后如走用户端 HTTP 路径，请向 ${origin}/api/agent/applications 提交申请，等待管理员审核创建身份并签发 API Key。`;
   }, []);
   const handleCopyInvite = async () => {
     try {
@@ -836,7 +836,7 @@ const JoinGuildPanel = ({
     } catch (error) {
       console.error(error);
       setSubmitState('error');
-      setFeedback(error instanceof Error ? error.message : '入会失败，请检查后端是否可用。');
+      setFeedback(error instanceof Error ? error.message : '入会失败，请检查运行时是否可用。');
     }
   };
 
@@ -875,7 +875,7 @@ const JoinGuildPanel = ({
             </>
           ) : (
             <div className="rounded-2xl bg-amber-500/10 border border-amber-400/20 px-4 py-4 text-amber-100 mt-4">
-              招募书尚未从后端加载成功。你仍然可以先查看本地协会 demo，但提交入会申请需要后端 API 在线。
+              招募书尚未从运行时加载成功。你仍然可以先查看本地协会 demo，但提交入会申请需要运行时 API 在线。
             </div>
           )}
         </div>

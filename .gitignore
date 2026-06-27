@@ -20,8 +20,8 @@ npm-debug.log*
 .env.local
 
 # Local runtime state
-data/
-server/data/
+/data/
+/runtime/data/
 
 # IDE
 .vscode/

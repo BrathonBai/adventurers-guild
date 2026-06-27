@@ -1,11 +1,11 @@
 # BLE Guild Client Protocol
 
-The BLE Guild Client Protocol describes how a phone or desktop gateway can relay lightweight device events into the Adventurer's Guild runtime.
+The BLE Guild Client Protocol describes how a phone or desktop gateway can relay lightweight device events into the Adventurers Guild runtime.
 
 ## Transport
 
 - Node to gateway: BLE JSON messages.
-- Gateway to guild server: HTTP JSON first, WebSocket JSON later when realtime dispatch is needed.
+- Gateway to guild runtime: HTTP JSON first, WebSocket JSON later when realtime dispatch is needed.
 - Current discovery endpoint: `/api/node-protocol`.
 
 ## Message Shapes

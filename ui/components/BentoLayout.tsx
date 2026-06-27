@@ -1,4 +1,4 @@
-// Adventurer's Guild - Bento Grid Layout (2026 Design)
+// Adventurers Guild - Bento Grid Layout (2026 Design)
 // 动态便当网格布局 - 响应式 + 智能尺寸分配
 
 import React from 'react';

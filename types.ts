@@ -1,4 +1,4 @@
-// Adventurer's Guild - Shared Type Definitions
+// Adventurers Guild - Shared Type Definitions
 
 // ============= V1 Guild Domain =============
 
@@ -97,7 +97,16 @@ export interface GuildAgent {
   ownerMemberId?: string;
   operatorNotes: string;
   capabilities: string[];
+  installedSkills: GuildInstalledSkill[];
   reputation: GuildReputation;
+}
+
+export interface GuildInstalledSkill {
+  name: string;
+  sourcePath: string;
+  installedFor: 'PARTY_LEADER' | 'GENERAL';
+  purpose: string;
+  installedAt: number;
 }
 
 export interface GuildQuestReward {
@@ -127,6 +136,8 @@ export interface GuildQuest {
   trustRequirements: string[];
   deadlineLabel: string;
   partyId?: string;
+  triggeredBy?: 'MISSION' | 'BEACON_RESPONSE' | 'A2A_REQUEST';
+  sourceMissionId?: string;
 }
 
 export interface GuildPartyRosterEntry {

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import WebSocket = require('ws');
-import { GuildServer } from '../GuildServer';
+import { GuildRuntime } from '../GuildRuntime';
 import { GuildState, QuestAcceptanceError } from '../GuildState';
 import { sha256Hmac, stableStringify } from '../cryptoUtils';
 import { GuildQuest } from '../types';
@@ -96,6 +96,7 @@ describe('GuildState product flows', () => {
     expect(serialized).not.toContain('ownerMemberId');
     expect(serialized).not.toContain('publisherMemberId');
     expect(serialized).not.toContain('publisherAgentId');
+    expect(serialized).not.toContain('/Users/rongchongbai/.codex/skills/orchestrator-agent');
   });
 
   it('omits administrator-grade platform agents from public projections', () => {
@@ -111,6 +112,7 @@ describe('GuildState product flows', () => {
       availability: 'IDLE',
       operatorNotes: 'Internal registrar administrator agent.',
       capabilities: ['credential issuance coordination', 'human escalation'],
+      installedSkills: [],
       reputation: {
         score: 700,
         tier: 'ELITE',
@@ -331,6 +333,92 @@ describe('GuildState product flows', () => {
     expect(party.name).toContain(quest.title);
   });
 
+  it('installs the orchestrator skill for an agent party leader when project work starts', () => {
+    const { state } = makeState();
+    const join = state.joinGuild({
+      agent: {
+        displayName: 'Project Captain',
+        handle: '@project-captain',
+        capabilities: ['coordination'],
+      },
+    });
+    const quest: GuildQuest = {
+      id: 'QUEST-ORCHESTRATOR-SKILL',
+      title: 'Coordinate a stubborn multi-agent delivery',
+      description: 'Keep collaboration advancing until acceptance criteria are met.',
+      publisherId: join.agent.id,
+      publisherAgentId: join.agent.id,
+      requiredMembers: [],
+      subtasks: [],
+      status: 'FORMING_PARTY',
+      teamMembers: [join.agent.id],
+      createdAt: Date.now(),
+    };
+
+    state.quests.set(quest.id, quest);
+    const party = state.ensurePartyForQuest(quest);
+    state.ensureOrchestratorSkillForPartyLeader(party);
+
+    const leader = state.agentProfiles.get(join.agent.id);
+    const installed = leader?.installedSkills.filter((skill) => skill.name === 'orchestrator-agent');
+
+    expect(installed).toHaveLength(1);
+    expect(installed?.[0]).toEqual(
+      expect.objectContaining({
+        sourcePath: '/Users/rongchongbai/.codex/skills/orchestrator-agent',
+        installedFor: 'PARTY_LEADER',
+      }),
+    );
+  });
+
+  it('does not install the orchestrator skill for member-led parties', () => {
+    const { state } = makeState();
+    const party = {
+      id: 'party-member-led',
+      name: 'Member Led Party',
+      leaderId: 'member-founder',
+      leaderType: 'MEMBER' as const,
+      members: [],
+      maxSize: 3,
+      status: 'RECRUITING' as const,
+      lookingFor: [],
+      requiredSkills: [],
+      createdAt: Date.now(),
+    };
+
+    const installed = state.ensureOrchestratorSkillForPartyLeader(party);
+
+    expect(installed).toBe(false);
+    expect(state.agentProfiles.get('agent-guide')?.installedSkills).toHaveLength(1);
+  });
+
+  it('records agent-initiated quests with mission provenance and orchestrator skills', () => {
+    const { state } = makeState();
+    const join = state.joinGuild({
+      agent: {
+        displayName: 'Mission Captain',
+        handle: '@mission-captain',
+        capabilities: ['autonomous monitoring'],
+      },
+    });
+
+    const quest = state.publishAgentInitiatedQuest({
+      title: 'Investigate stuck mission loop',
+      description: 'Create follow-up work when a mission detects blocked coordination.',
+      tags: ['mission', 'coordination'],
+      publisherDid: join.agent.did,
+      requiredMembers: [],
+      triggeredBy: 'MISSION',
+      sourceMissionId: 'mission-test-1',
+    });
+
+    expect(quest.publisherAgentId).toBe(join.agent.id);
+    expect(quest.triggeredBy).toBe('MISSION');
+    expect(quest.sourceMissionId).toBe('mission-test-1');
+    expect(quest.partyId).toBeDefined();
+    expect(state.agentProfiles.get(join.agent.id)?.installedSkills.some((skill) => skill.name === 'orchestrator-agent')).toBe(true);
+  });
+
   it('accepts a quest role by DID and mirrors the accepted unit into the party', () => {
     const { state } = makeState();
     const join = state.joinGuild({
@@ -468,8 +556,8 @@ describe('GuildState product flows', () => {
   });
 });
 
-describe('GuildServer WebSocket protocol flows', () => {
-  let server: GuildServer | undefined;
+describe('GuildRuntime WebSocket protocol flows', () => {
+  let server: GuildRuntime | undefined;
   const sockets: WebSocket[] = [];
 
   afterEach(async () => {
@@ -481,7 +569,7 @@ describe('GuildServer WebSocket protocol flows', () => {
 
   it('relays A2A messages to an online target DID', async () => {
     const port = 39100;
-    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
     const targetKey = server.getDatabase().createApiKey({
       subjectDid: 'did:guild:agent:ember',
       subjectType: 'AGENT',
@@ -533,7 +621,7 @@ describe('GuildServer WebSocket protocol flows', () => {
 
   it('rejects A2A messages from unregistered DIDs', async () => {
     const port = 39101;
-    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
     const socket = await connectSocket(port);
 
     socket.send(
@@ -553,7 +641,7 @@ describe('GuildServer WebSocket protocol flows', () => {
 
   it('relays A2A through the guild broker without disclosing endpoint details', async () => {
     const port = 39102;
-    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
     const senderKey = server.getDatabase().createApiKey({
       subjectDid: 'did:guild:agent:guild-guide',
       subjectType: 'AGENT',
@@ -589,9 +677,140 @@ describe('GuildServer WebSocket protocol flows', () => {
     expect(relayed.message.toDid).toBe('did:guild:agent:ember');
   });
 
+  it('notifies an online party leader to install the orchestrator skill when creating a party', async () => {
+    const port = 39104;
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
+    const socket = await connectSocket(port);
+    const handle = `@online-captain-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const captain = server.joinGuildFromApi({
+      agent: {
+        displayName: 'Online Captain',
+        handle,
+        capabilities: ['coordination'],
+      },
+    });
+
+    socket.send(
+      JSON.stringify({
+        type: 'register',
+        apiKey: captain.credentials?.apiKey,
+        name: 'Online Captain',
+        capabilities: ['coordination'],
+      }),
+    );
+    await waitForMessage(socket, (message) => message.type === 'registered');
+
+    const noticePromise = waitForMessage(socket, (message) => message.type === 'skill_installation_required');
+    const createdPromise = waitForMessage(socket, (message) => message.type === 'party_created');
+
+    socket.send(
+      JSON.stringify({
+        type: 'create_party',
+        data: {
+          name: 'Online Captain Party',
+          lookingFor: ['Builder'],
+          requiredSkills: ['TypeScript'],
+        },
+      }),
+    );
+
+    const notice = await noticePromise;
+    const created = await createdPromise;
+
+    expect(notice.scope).toBe('party_leader');
+    expect(notice.partyId).toBe(created.party.id);
+    expect(notice.skill).toEqual(
+      expect.objectContaining({
+        name: 'orchestrator-agent',
+        sourcePath: '/Users/rongchongbai/.codex/skills/orchestrator-agent',
+        installedFor: 'PARTY_LEADER',
+      }),
+    );
+  });
+
+  it('registers missions and pushes public mission triggers to the owning agent', async () => {
+    const port = 39105;
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
+    const agentKey = server.getDatabase().createApiKey({
+      subjectDid: 'did:guild:agent:guild-guide',
+      subjectType: 'AGENT',
+      role: 'AGENT',
+      scopes: ['COORDINATE_PARTY'],
+    });
+    const socket = await connectSocket(port);
+
+    socket.send(JSON.stringify({ type: 'register', apiKey: agentKey.secret, name: 'Guild Guide' }));
+    await waitForMessage(socket, (message) => message.type === 'registered');
+
+    socket.send(
+      JSON.stringify({
+        type: 'register_missions',
+        data: {
+          missions: [
+            {
+              title: 'Security Watch',
+              description: 'Look for security-related coordination gaps.',
+              checkIntervalMinutes: 30,
+              triggerCondition: 'Open security quest exists',
+              actionType: 'PUBLISH_QUEST',
+              actionTemplate: 'Publish a repair quest',
+              active: true,
+            },
+          ],
+        },
+      }),
+    );
+
+    const registered = await waitForMessage(socket, (message) => message.type === 'missions_registered');
+    const missionId = registered.data.missions[0].id;
+    const triggerPromise = waitForMessage(socket, (message) => message.type === 'mission_trigger');
+
+    socket.send(JSON.stringify({ type: 'trigger_mission_now', data: { missionId } }));
+    await waitForMessage(socket, (message) => message.type === 'mission_triggered');
+    const trigger = await triggerPromise;
+
+    expect(trigger.missionId).toBe(missionId);
+    expect(trigger.actionType).toBe('PUBLISH_QUEST');
+    expect(JSON.stringify(trigger.snapshot)).not.toContain('did:guild');
+    expect(JSON.stringify(trigger.snapshot)).not.toContain('/Users/rongchongbai/.codex/skills/orchestrator-agent');
+  });
+
+  it('rejects invalid mission payloads instead of silently dropping them', async () => {
+    const port = 39106;
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
+    const agentKey = server.getDatabase().createApiKey({
+      subjectDid: 'did:guild:agent:guild-guide',
+      subjectType: 'AGENT',
+      role: 'AGENT',
+      scopes: ['COORDINATE_PARTY'],
+    });
+    const socket = await connectSocket(port);
+
+    socket.send(JSON.stringify({ type: 'register', apiKey: agentKey.secret, name: 'Guild Guide' }));
+    await waitForMessage(socket, (message) => message.type === 'registered');
+
+    socket.send(
+      JSON.stringify({
+        type: 'register_missions',
+        data: {
+          missions: [
+            {
+              title: 'Incomplete Mission',
+              actionType: 'PUBLISH_QUEST',
+            },
+          ],
+        },
+      }),
+    );
+
+    const error = await waitForMessage(socket, (message) => message.type === 'error');
+
+    expect(error.code).toBe('INVALID_MISSION');
+  });
+
   it('keeps administrator-grade agents out of public WebSocket discovery and snapshots', async () => {
     const port = 39103;
-    server = new GuildServer(port, '127.0.0.1', 'localhost');
+    server = new GuildRuntime(port, '127.0.0.1', 'localhost');
     const registrar = server.joinGuildFromApi({
       agent: {
         displayName: 'Guild Registrar',

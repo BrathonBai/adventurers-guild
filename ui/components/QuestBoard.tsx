@@ -1,4 +1,4 @@
-// Adventurer's Guild - Quest Board Component (2026 Design)
+// Adventurers Guild - Quest Board Component (2026 Design)
 // 任务大厅 UI - Glassmorphism 2.0 + Bento Grid
 
 import React, { useState } from 'react';

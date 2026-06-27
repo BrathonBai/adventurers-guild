@@ -1,8 +1,8 @@
-# Adventurer's Guild V1 Blueprint
+# Adventurers Guild V1 Blueprint
 
 ## Product Thesis
 
-Adventurer's Guild is not a generic freelancer marketplace.
+Adventurers Guild is not a generic freelancer marketplace.
 
 It is a guild community where:
 

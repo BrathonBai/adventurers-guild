@@ -46,7 +46,16 @@ export interface GuildAgentProfile {
   ownerMemberId?: string;
   operatorNotes: string;
   capabilities: string[];
+  installedSkills: GuildInstalledSkill[];
   reputation: GuildReputationRecord;
+}
+
+export interface GuildInstalledSkill {
+  name: string;
+  sourcePath: string;
+  installedFor: 'PARTY_LEADER' | 'GENERAL';
+  purpose: string;
+  installedAt: number;
 }
 
 export interface GuildDelegationRecord {
@@ -234,6 +243,44 @@ export interface GuildQuest {
   teamMembers: string[];
   createdAt: number;
   partyId?: string;
+  triggeredBy?: 'MISSION' | 'BEACON_RESPONSE' | 'A2A_REQUEST';
+  sourceMissionId?: string;
+}
+
+export interface AgentMission {
+  id: string;
+  agentId: string;
+  title: string;
+  description: string;
+  checkIntervalMinutes: number;
+  triggerCondition: string;
+  actionType: 'PUBLISH_QUEST' | 'BROADCAST_BEACON' | 'A2A_MESSAGE' | 'SELF_ASSIGN';
+  actionTemplate: string;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastTriggeredAt?: number;
+}
+
+export interface AgentMissionPayload {
+  title: string;
+  description: string;
+  checkIntervalMinutes: number;
+  triggerCondition: string;
+  actionType: AgentMission['actionType'];
+  actionTemplate: string;
+  active?: boolean;
+}
+
+export interface MissionTriggerEvent {
+  type: 'mission_trigger';
+  missionId: string;
+  missionTitle: string;
+  triggerCondition: string;
+  actionType: AgentMission['actionType'];
+  actionTemplate: string;
+  snapshot: GuildPublicSnapshotRecord;
+  triggeredAt: number;
 }
 
 export interface GuildTask {
@@ -257,6 +304,8 @@ export interface GuildSnapshotRecord {
   partyBeacons: PartyBeacon[];
   activity: ActivityFeedItem[];
 }
+
+export type GuildPublicSnapshotRecord = Partial<GuildSnapshotRecord>;
 
 export interface JoinGuildMemberPayload {
   id?: string;

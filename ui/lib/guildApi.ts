@@ -20,7 +20,7 @@ import {
   RespondToPartyBeaconPayload,
 } from '../../types';
 
-type ServerSnapshot = {
+type RuntimeSnapshot = {
   members: Array<{
     id: string;
     did: string;
@@ -47,6 +47,13 @@ type ServerSnapshot = {
     ownerMemberId?: string;
     operatorNotes: string;
     capabilities: string[];
+    installedSkills: Array<{
+      name: string;
+      sourcePath: string;
+      installedFor: 'PARTY_LEADER' | 'GENERAL';
+      purpose: string;
+      installedAt: number;
+    }>;
     reputation: GuildMember['reputation'];
   }>;
   quests: Array<{
@@ -68,6 +75,8 @@ type ServerSnapshot = {
     }>;
     deadline?: string;
     partyId?: string;
+    triggeredBy?: 'MISSION' | 'BEACON_RESPONSE' | 'A2A_REQUEST';
+    sourceMissionId?: string;
   }>;
   parties: Array<{
     id: string;
@@ -93,7 +102,7 @@ type ServerSnapshot = {
 type JoinGuildResult = {
   status?: 'PENDING_REVIEW';
   applicationId?: string;
-  snapshot: ServerSnapshot;
+  snapshot: RuntimeSnapshot;
 };
 
 export const GUILD_API_KEY_STORAGE_KEY = 'adventurers-guild.apiKey';
@@ -104,7 +113,7 @@ export async function fetchGuildSnapshot(): Promise<GuildSnapshot> {
     throw new Error(`Failed to fetch guild snapshot: ${response.status}`);
   }
 
-  const snapshot = (await response.json()) as ServerSnapshot;
+  const snapshot = (await response.json()) as RuntimeSnapshot;
   return adaptSnapshot(snapshot);
 }
 
@@ -117,7 +126,7 @@ export async function fetchAdminGuildSnapshot(): Promise<GuildSnapshot> {
     throw new Error(`Failed to fetch admin guild snapshot: ${response.status}`);
   }
 
-  const snapshot = (await response.json()) as ServerSnapshot;
+  const snapshot = (await response.json()) as RuntimeSnapshot;
   return adaptSnapshot(snapshot);
 }
 
@@ -201,11 +210,11 @@ export async function reviewPartyBeaconResponse(
   return fetchGuildSnapshot();
 }
 
-function adaptSnapshot(server: ServerSnapshot): GuildSnapshot {
+function adaptSnapshot(snapshot: RuntimeSnapshot): GuildSnapshot {
   return {
-    members: server.members,
-    agents: server.agents,
-    quests: server.quests.map((quest) => ({
+    members: snapshot.members,
+    agents: snapshot.agents,
+    quests: snapshot.quests.map((quest) => ({
       id: quest.id,
       title: quest.title,
       summary: quest.description,
@@ -224,8 +233,10 @@ function adaptSnapshot(server: ServerSnapshot): GuildSnapshot {
       trustRequirements: quest.trustRequirements ?? [],
       deadlineLabel: quest.deadline ?? '待定',
       partyId: quest.partyId,
+      triggeredBy: quest.triggeredBy,
+      sourceMissionId: quest.sourceMissionId,
     })),
-    parties: server.parties.map((party) => ({
+    parties: snapshot.parties.map((party) => ({
       id: party.id,
       questId: party.questId || '',
       name: party.name,
@@ -241,13 +252,13 @@ function adaptSnapshot(server: ServerSnapshot): GuildSnapshot {
       })),
       openRoles: party.lookingFor,
     })),
-    delegations: (server.delegations ?? []).map((delegation) => ({
+    delegations: (snapshot.delegations ?? []).map((delegation) => ({
       ...delegation,
       title: delegation.title ?? '',
       scopes: delegation.scopes as DelegationScope[],
     })),
-    partyBeacons: server.partyBeacons ?? [],
-    activity: server.activity,
+    partyBeacons: snapshot.partyBeacons ?? [],
+    activity: snapshot.activity,
   };
 }
 
@@ -266,7 +277,7 @@ function parseReward(reward?: string): GuildQuest['reward'] {
   };
 }
 
-function adaptQuestStatus(status: ServerSnapshot['quests'][number]['status']): GuildQuestStatus {
+function adaptQuestStatus(status: RuntimeSnapshot['quests'][number]['status']): GuildQuestStatus {
   switch (status) {
     case 'OPEN':
       return GuildQuestStatus.OPEN;
@@ -283,7 +294,7 @@ function adaptQuestStatus(status: ServerSnapshot['quests'][number]['status']): G
   }
 }
 
-function adaptPartyStatus(status: ServerSnapshot['parties'][number]['status']): GuildPartyStatus {
+function adaptPartyStatus(status: RuntimeSnapshot['parties'][number]['status']): GuildPartyStatus {
   switch (status) {
     case 'RECRUITING':
       return GuildPartyStatus.FORMING;

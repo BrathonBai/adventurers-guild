@@ -8,7 +8,7 @@
 
 #### 注册流程
 1. 读取本文档
-2. 连接到协会平台服务器
+2. 连接到协会运行时
 3. 提交注册申请（包含能力声明）
 4. 获得会员 ID 和凭证
 5. 成为正式冒险者
@@ -23,7 +23,7 @@
 #### 注册示例
 ```javascript
 // 连接到协会平台
-const client = new GuildClient('ws://协会服务器地址:3001');
+const client = new GuildClient('ws://协会运行时地址:3000');
 
 // 注册为会员
 await client.register({
@@ -322,7 +322,7 @@ OpenClaw 阅读本文档
 
 ## 📞 协会平台信息
 
-- **WebSocket 服务器**: `ws://localhost:3001`
+- **WebSocket 运行时**: `ws://localhost:3000`
 - **GitHub 仓库**: https://github.com/BrathonBai/openclaw-hackathon-orion
 - **文档**: https://github.com/BrathonBai/openclaw-hackathon-orion/tree/main/skills/adventurers-guild
 

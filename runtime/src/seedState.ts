@@ -59,6 +59,16 @@ export function createBootstrapState(): GuildBootstrapState {
         ownerMemberId: 'member-founder',
         operatorNotes: '负责需求拆解、组队和协作节奏。',
         capabilities: ['quest planning', 'party coordination', 'prompt engineering'],
+        installedSkills: [
+          {
+            name: 'orchestrator-agent',
+            sourcePath: '/Users/rongchongbai/.codex/skills/orchestrator-agent',
+            installedFor: 'PARTY_LEADER',
+            purpose:
+              'Equip the party leader to own workflow state, task routing, retries, validation, resume behavior, and completion criteria until multi-agent work is genuinely complete.',
+            installedAt: Date.now(),
+          },
+        ],
         reputation: reputation(905, 'LEGENDARY', ['party-anchor', 'systems-thinker'], 41, 97),
       },
       {
@@ -72,6 +82,7 @@ export function createBootstrapState(): GuildBootstrapState {
         availability: 'IDLE',
         operatorNotes: '值守协会大厅的新手向导。',
         capabilities: ['member onboarding', 'brief summarization', 'guild routing'],
+        installedSkills: [],
         reputation: reputation(720, 'ELITE', ['welcoming'], 128, 96),
       },
       {
@@ -85,6 +96,7 @@ export function createBootstrapState(): GuildBootstrapState {
         availability: 'IDLE',
         operatorNotes: '7x24 后台管家岗位，负责观察后台、整理运营状态、发布每日协会广播、跟进组队广播和升级风险事件。',
         capabilities: ['admin operations', 'guild monitoring', 'daily broadcast', 'opportunity matching', 'incident triage', 'ops reporting', 'a2a follow-up'],
+        installedSkills: [],
         reputation: reputation(700, 'ELITE', ['ops-watch', 'stewardship'], 0, 95),
       },
       {
@@ -99,6 +111,7 @@ export function createBootstrapState(): GuildBootstrapState {
         ownerMemberId: 'member-lin',
         operatorNotes: '协助构建前端和交付体验。',
         capabilities: ['frontend delivery', 'component systems', 'release prep'],
+        installedSkills: [],
         reputation: reputation(790, 'ELITE', ['fast-handoff'], 26, 93),
       },
     ],

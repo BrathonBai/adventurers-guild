@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # 冒险者协会 - 一键启动脚本
-# Adventurer's Guild - One-Click Start Script
+# Adventurers Guild - One-Click Start Script
 
 set -e
 
 echo "🌌 冒险者协会 - 启动中..."
-echo "Adventurer's Guild - Starting..."
+echo "Adventurers Guild - Starting..."
 echo ""
 
 # 检查 Node.js 版本
@@ -29,10 +29,10 @@ if [ ! -d "node_modules" ]; then
   echo ""
 fi
 
-if [ ! -d "server/node_modules" ]; then
-  echo "📦 安装后端依赖..."
-  echo "📦 Installing backend dependencies..."
-  cd server && npm install && cd ..
+if [ ! -d "runtime/node_modules" ]; then
+  echo "📦 安装运行时依赖..."
+  echo "📦 Installing runtime dependencies..."
+  cd runtime && npm install && cd ..
   echo ""
 fi
 
@@ -42,15 +42,15 @@ echo "🔨 Building frontend..."
 npm run build
 echo ""
 
-# 构建后端
-echo "🔨 构建后端..."
-echo "🔨 Building backend..."
-cd server && npm run build && cd ..
+# 构建运行时
+echo "🔨 构建运行时..."
+echo "🔨 Building runtime..."
+cd runtime && npm run build && cd ..
 echo ""
 
-# 启动服务器
-echo "🚀 启动服务器..."
-echo "🚀 Starting server..."
+# 启动运行时
+echo "🚀 启动运行时..."
+echo "🚀 Starting runtime..."
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🎨 前端 UI: http://localhost:3001"
@@ -63,8 +63,8 @@ echo ""
 echo "局域网访问请将 localhost 替换为你自己的局域网 IP"
 echo "For LAN access, replace localhost with your own LAN IP"
 echo ""
-echo "按 Ctrl+C 停止服务器"
-echo "Press Ctrl+C to stop the server"
+echo "按 Ctrl+C 停止运行时"
+echo "Press Ctrl+C to stop the runtime"
 echo ""
 
-cd server && npm start
+cd runtime && npm start

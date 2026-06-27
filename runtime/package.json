@@ -1,7 +1,7 @@
 {
-  "name": "@adventurers-guild/server",
+  "name": "@adventurers-guild/runtime",
   "version": "0.1.0",
-  "description": "WebSocket server for Adventurer's Guild platform",
+  "description": "Runtime for the Adventurers Guild collaboration platform",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -12,7 +12,7 @@
   },
   "keywords": [
     "websocket",
-    "server",
+    "runtime",
     "agent",
     "a2a"
   ],

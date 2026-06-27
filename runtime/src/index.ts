@@ -1,11 +1,12 @@
-import { GuildServer } from './GuildServer';
+import { GuildRuntime } from './GuildRuntime';
 import { QuestAcceptanceError } from './GuildState';
 import express from 'express';
 import path from 'path';
 import { createServer } from 'http';
 import { loginWithPassword, authMiddleware, expressErrorHandler, requireAdmin, requireRole } from './auth';
-import { rateLimit, securityHeaders } from './security';
+import { agentActionRateLimit, rateLimit, securityHeaders } from './security';
 import { HttpError } from './errors';
+import { normalizeRequiredMembers } from './messageUtils';
 import { validateBeaconResponse, validateCreatePartyBeacon, validateJoinGuild } from './validation';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
@@ -16,12 +17,12 @@ const NETWORK_HOST = process.env.NETWORK_HOST || 'localhost';
 // 创建 Express 应用（用于静态文件服务）
 const app = express();
 const httpServer = createServer(app);
-const guildServer = new GuildServer(PORT, BIND_HOST, NETWORK_HOST);
+const guildRuntime = new GuildRuntime(PORT, BIND_HOST, NETWORK_HOST);
 
 app.use(securityHeaders);
 app.use(rateLimit());
 app.use(express.json({ limit: '64kb' }));
-app.use(authMiddleware(guildServer.getDatabase()));
+app.use(authMiddleware(guildRuntime.getDatabase()));
 
 app.post('/admin-api/auth/login', (req, res, next) => {
   try {
@@ -36,32 +37,32 @@ app.post('/admin-api/auth/login', (req, res, next) => {
 });
 
 app.get('/api/recruitment-book', (_req, res) => {
-  res.json(guildServer.getRecruitmentBookPacket());
+  res.json(guildRuntime.getRecruitmentBookPacket());
 });
 
 app.get('/api/guild-snapshot', (req, res) => {
-  res.json(guildServer.getPublicGuildSnapshot());
+  res.json(guildRuntime.getPublicGuildSnapshot());
 });
 
 app.get('/admin-api/guild-snapshot', requireAdmin, (_req, res) => {
-  res.json(guildServer.getGuildSnapshot());
+  res.json(guildRuntime.getGuildSnapshot());
 });
 
 app.get('/admin-api/audit-logs', requireAdmin, (_req, res) => {
-  res.json({ auditLogs: guildServer.getDatabase().listAuditLogs() });
+  res.json({ auditLogs: guildRuntime.getDatabase().listAuditLogs() });
 });
 
 app.post('/admin-api/backup', requireAdmin, (_req, res) => {
-  res.json({ backupPath: guildServer.getDatabase().backup() });
+  res.json({ backupPath: guildRuntime.getDatabase().backup() });
 });
 
 app.get('/api/node-protocol', (_req, res) => {
-  res.json(guildServer.getGuildNodeProtocolPacket());
+  res.json(guildRuntime.getGuildNodeProtocolPacket());
 });
 
 app.get('/api/did/:did', requireRole('MEMBER', 'AGENT', 'ADMIN'), (req, res) => {
   const publicBaseUrl = `${req.protocol}://${req.get('host')}`;
-  const document = guildServer.resolveDidDocument(req.params.did, publicBaseUrl);
+  const document = guildRuntime.resolveDidDocument(req.params.did, publicBaseUrl);
   if (!document) {
     res.status(404).json({ error: 'DID_NOT_FOUND', message: 'Guild DID not found' });
     return;
@@ -78,7 +79,7 @@ app.get('/api/connections/resolve', requireRole('MEMBER', 'AGENT', 'ADMIN'), (re
   }
 
   const publicBaseUrl = `${req.protocol}://${req.get('host')}`;
-  const resolution = guildServer.resolveConnectionUri(connectionUri, publicBaseUrl);
+  const resolution = guildRuntime.resolveConnectionUri(connectionUri, publicBaseUrl);
   if (!resolution) {
     res.status(404).json({ error: 'CONNECTION_NOT_FOUND', message: 'Guild connection URI not found' });
     return;
@@ -88,7 +89,7 @@ app.get('/api/connections/resolve', requireRole('MEMBER', 'AGENT', 'ADMIN'), (re
 });
 
 app.get('/api/party-beacons', (_req, res) => {
-  res.json({ beacons: guildServer.listPublicPartyBeacons() });
+  res.json({ beacons: guildRuntime.listPublicPartyBeacons() });
 });
 
 app.post('/api/a2a/relay', requireRole('MEMBER', 'AGENT'), (req, res, next) => {
@@ -99,7 +100,7 @@ app.post('/api/a2a/relay', requireRole('MEMBER', 'AGENT'), (req, res, next) => {
   }
 
   try {
-    const result = guildServer.relayA2AMessage(actorDid, req.body);
+    const result = guildRuntime.relayA2AMessage(actorDid, req.body);
     res.status(result.status === 'DELIVERED' ? 202 : 409).json(result);
   } catch (error) {
     next(error);
@@ -120,7 +121,7 @@ app.post('/api/quests/:questId/accept', requireRole('MEMBER', 'AGENT', 'ADMIN'),
   }
 
   try {
-    const result = guildServer.acceptQuest(req.params.questId, actorDid, role, req.principal?.role);
+    const result = guildRuntime.acceptQuest(req.params.questId, actorDid, role, req.principal?.role);
     if (!result) {
       res.status(404).json({ error: 'QUEST_NOT_FOUND', message: 'Quest not found' });
       return;
@@ -147,7 +148,7 @@ app.post('/api/party-beacons', requireRole('MEMBER', 'AGENT'), (req, res, next) 
     if (req.principal.did !== publisherDid) {
       throw new HttpError(403, 'DID_MISMATCH', 'publisherDid must match the authenticated identity');
     }
-    res.status(201).json({ beacon: guildServer.createPartyBeacon({ ...payload, publisherDid }) });
+    res.status(201).json({ beacon: guildRuntime.createPartyBeacon({ ...payload, publisherDid }) });
   } catch (error) {
     next(error);
   }
@@ -163,7 +164,7 @@ app.post('/api/party-beacons/:beaconId/respond', requireRole('MEMBER', 'AGENT'),
     if (req.principal.did !== responderDid) {
       throw new HttpError(403, 'DID_MISMATCH', 'responderDid must match the authenticated identity');
     }
-    const response = guildServer.respondToPartyBeacon(req.params.beaconId, { ...payload, responderDid });
+    const response = guildRuntime.respondToPartyBeacon(req.params.beaconId, { ...payload, responderDid });
     if (!response) {
       res.status(404).json({ error: 'BEACON_NOT_OPEN', message: 'Party beacon not found, closed, or expired' });
       return;
@@ -196,7 +197,7 @@ app.post('/api/party-beacons/:beaconId/responses/:responseId/review', requireRol
   }
 
   try {
-    const response = guildServer.reviewPartyBeaconResponse(req.params.beaconId, req.params.responseId, status, reviewerDid);
+    const response = guildRuntime.reviewPartyBeaconResponse(req.params.beaconId, req.params.responseId, status, reviewerDid);
     if (!response) {
       res.status(404).json({ error: 'RESPONSE_NOT_FOUND', message: 'Beacon response not found' });
       return;
@@ -208,11 +209,92 @@ app.post('/api/party-beacons/:beaconId/responses/:responseId/review', requireRol
   }
 });
 
+app.get('/api/agent/:agentId/missions', requireRole('MEMBER', 'AGENT', 'ADMIN'), (req, res, next) => {
+  try {
+    if (!canViewAgentMissions(req.params.agentId, req.principal)) {
+      throw new HttpError(403, 'MISSION_FORBIDDEN', 'You can only view missions for your own agent or owned agents');
+    }
+
+    res.json({ missions: guildRuntime.missionEngine.getMissionsByAgent(req.params.agentId) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/admin-api/missions', requireAdmin, (_req, res, next) => {
+  try {
+    const missions = guildRuntime.missionEngine.getAllActiveMissions();
+    res.json({ missions, count: missions.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/quests/agent-publish', requireRole('AGENT', 'ADMIN'), agentActionRateLimit(10), (req, res, next) => {
+  try {
+    const actorDid = req.principal?.did;
+    if (!actorDid) {
+      throw new HttpError(403, 'DID_REQUIRED', 'Authenticated identity must include a guild DID');
+    }
+
+    const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+    const description = typeof req.body?.description === 'string' ? req.body.description.trim() : '';
+    const triggeredBy = req.body?.triggeredBy;
+    if (!title || !description || !['MISSION', 'BEACON_RESPONSE', 'A2A_REQUEST'].includes(triggeredBy)) {
+      throw new HttpError(400, 'INVALID_SCHEMA', 'title, description, and a valid triggeredBy are required');
+    }
+
+    const agent = guildRuntime.getGuildSnapshot().agents.find((candidate) => candidate.did === actorDid);
+    if (!agent) {
+      throw new HttpError(403, 'AGENT_DID_REQUIRED', 'Authenticated DID must belong to a guild agent');
+    }
+    if (!guildRuntime.checkAgentActionRateLimit(agent.id)) {
+      throw new HttpError(429, 'AGENT_RATE_LIMIT', 'Agent action rate limit exceeded: 10 per hour');
+    }
+
+    const sourceMissionId = typeof req.body?.sourceMissionId === 'string' ? req.body.sourceMissionId : undefined;
+    if (sourceMissionId) {
+      const mission = guildRuntime.missionEngine.getMission(sourceMissionId);
+      if (!mission || mission.agentId !== agent.id) {
+        throw new HttpError(403, 'MISSION_FORBIDDEN', 'sourceMissionId must belong to the authenticated agent');
+      }
+    }
+
+    const quest = guildRuntime.publishAgentInitiatedQuest({
+      title,
+      description,
+      tags: Array.isArray(req.body?.tags) ? req.body.tags.filter((tag: unknown): tag is string => typeof tag === 'string') : [],
+      publisherDid: actorDid,
+      requiredMembers: normalizeRequiredMembers(req.body?.requiredMembers),
+      triggeredBy,
+      sourceMissionId,
+    });
+
+    res.status(201).json({ quest, note: 'Quest created by autonomous agent action' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/admin-api/revoke-agent-action/:questId', requireAdmin, (req, res, next) => {
+  try {
+    const quest = guildRuntime.revokeAgentInitiatedQuest(req.params.questId, req.principal?.did, req.principal?.role);
+    if (!quest) {
+      res.status(404).json({ error: 'QUEST_NOT_FOUND', message: 'Quest not found' });
+      return;
+    }
+
+    res.json({ quest, message: `Quest "${quest.title}" has been revoked by admin` });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/agent/applications', (req, res, next) => {
   try {
     const payload = validateJoinGuild(req.body);
-    const application = guildServer.getDatabase().createAgentApplication(payload);
-    guildServer.getDatabase().audit({
+    const application = guildRuntime.getDatabase().createAgentApplication(payload);
+    guildRuntime.getDatabase().audit({
       action: 'SUBMIT_AGENT_APPLICATION',
       targetType: 'agent_application',
       targetId: application.id,
@@ -222,7 +304,7 @@ app.post('/api/agent/applications', (req, res, next) => {
         agentDisplayName: payload.agent.displayName,
       },
     });
-    res.status(202).json({ status: 'PENDING_REVIEW', applicationId: application.id, snapshot: guildServer.getPublicGuildSnapshot() });
+    res.status(202).json({ status: 'PENDING_REVIEW', applicationId: application.id, snapshot: guildRuntime.getPublicGuildSnapshot() });
   } catch (error) {
     next(error);
   }
@@ -230,7 +312,7 @@ app.post('/api/agent/applications', (req, res, next) => {
 
 app.get('/api/agent/applications/:applicationId', (req, res, next) => {
   try {
-    const application = guildServer.getDatabase().getAgentApplication(req.params.applicationId);
+    const application = guildRuntime.getDatabase().getAgentApplication(req.params.applicationId);
     if (!application) {
       res.status(404).json({ error: 'APPLICATION_NOT_FOUND', message: 'Agent application not found' });
       return;
@@ -245,7 +327,7 @@ app.get('/admin-api/agent/applications', requireAdmin, (req, res) => {
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
   const allowedStatuses = ['PENDING_REVIEW', 'APPROVED', 'DECLINED'];
   res.json({
-    applications: guildServer
+    applications: guildRuntime
       .getDatabase()
       .listAgentApplications(allowedStatuses.includes(status || '') ? status as any : undefined),
   });
@@ -253,12 +335,12 @@ app.get('/admin-api/agent/applications', requireAdmin, (req, res) => {
 
 app.post('/admin-api/agent/join', requireAdmin, (req, res, next) => {
   try {
-    const result = guildServer.joinGuildFromApi(validateJoinGuild(req.body));
+    const result = guildRuntime.joinGuildFromApi(validateJoinGuild(req.body));
     const applicationId = typeof req.body?.applicationId === 'string' ? req.body.applicationId : undefined;
     if (applicationId) {
-      const application = guildServer.getDatabase().getAgentApplication(applicationId);
+      const application = guildRuntime.getDatabase().getAgentApplication(applicationId);
       if (application?.status === 'PENDING_REVIEW') {
-        guildServer.getDatabase().updateAgentApplicationReview(applicationId, {
+        guildRuntime.getDatabase().updateAgentApplicationReview(applicationId, {
           status: 'APPROVED',
           reviewerDid: req.principal?.did,
           reviewNote: 'approved through admin agent join endpoint',
@@ -275,7 +357,7 @@ app.post('/admin-api/agent/join', requireAdmin, (req, res, next) => {
 
 app.post('/admin-api/agent/applications/:applicationId/review', requireAdmin, (req, res, next) => {
   try {
-    const application = guildServer.getDatabase().getAgentApplication(req.params.applicationId);
+    const application = guildRuntime.getDatabase().getAgentApplication(req.params.applicationId);
     if (!application) {
       res.status(404).json({ error: 'APPLICATION_NOT_FOUND', message: 'Agent application not found' });
       return;
@@ -288,12 +370,12 @@ app.post('/admin-api/agent/applications/:applicationId/review', requireAdmin, (r
     const approved = req.body?.approved !== false;
     const reviewNote = typeof req.body?.reviewNote === 'string' ? req.body.reviewNote : undefined;
     if (!approved) {
-      const reviewed = guildServer.getDatabase().updateAgentApplicationReview(application.id, {
+      const reviewed = guildRuntime.getDatabase().updateAgentApplicationReview(application.id, {
         status: 'DECLINED',
         reviewerDid: req.principal?.did,
         reviewNote,
       });
-      guildServer.getDatabase().audit({
+      guildRuntime.getDatabase().audit({
         actorDid: req.principal?.did,
         actorRole: req.principal?.role,
         action: 'DECLINE_AGENT_APPLICATION',
@@ -305,15 +387,15 @@ app.post('/admin-api/agent/applications/:applicationId/review', requireAdmin, (r
       return;
     }
 
-    const result = guildServer.joinGuildFromApi(application.payload);
-    const reviewed = guildServer.getDatabase().updateAgentApplicationReview(application.id, {
+    const result = guildRuntime.joinGuildFromApi(application.payload);
+    const reviewed = guildRuntime.getDatabase().updateAgentApplicationReview(application.id, {
       status: 'APPROVED',
       reviewerDid: req.principal?.did,
       reviewNote,
       resultAgentId: result.agent.id,
       credentials: result.credentials,
     });
-    guildServer.getDatabase().audit({
+    guildRuntime.getDatabase().audit({
       actorDid: req.principal?.did,
       actorRole: req.principal?.role,
       action: 'APPROVE_AGENT_APPLICATION',
@@ -335,6 +417,31 @@ app.use(express.static(distPath, {
   },
 }));
 
+function canViewAgentMissions(agentId: string, principal: Express.Request['principal']): boolean {
+  if (principal?.role === 'ADMIN') {
+    return true;
+  }
+
+  if (!principal?.did) {
+    return false;
+  }
+
+  const snapshot = guildRuntime.getGuildSnapshot();
+  const agent = snapshot.agents.find((candidate) => candidate.id === agentId);
+  if (!agent) {
+    return false;
+  }
+
+  if (agent.did === principal.did) {
+    return true;
+  }
+
+  const owner = agent.ownerMemberId
+    ? snapshot.members.find((member) => member.id === agent.ownerMemberId)
+    : undefined;
+  return owner?.did === principal.did;
+}
+
 // SPA 路由 - 所有路由都返回 index.html
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -345,7 +452,7 @@ app.use(expressErrorHandler);
 
 // 启动 HTTP 服务器（前端）
 httpServer.listen(UI_PORT, BIND_HOST, () => {
-  console.log(`🎨 UI Server bound on http://${BIND_HOST}:${UI_PORT}`);
+  console.log(`🎨 UI runtime bound on http://${BIND_HOST}:${UI_PORT}`);
   console.log(`🎨 Local UI: http://localhost:${UI_PORT}`);
   console.log(`🎨 Network UI: http://${NETWORK_HOST}:${UI_PORT}`);
   console.log(`📜 Recruitment API: http://${NETWORK_HOST}:${UI_PORT}/api/recruitment-book`);
@@ -357,9 +464,9 @@ httpServer.listen(UI_PORT, BIND_HOST, () => {
 // 优雅关闭
 const shutdown = () => {
   console.log('\n👋 Shutting down gracefully...');
-  guildServer.close();
+  guildRuntime.close();
   httpServer.close(() => {
-    console.log('✅ HTTP server closed');
+    console.log('✅ HTTP runtime closed');
     process.exit(0);
   });
 };
@@ -367,6 +474,6 @@ const shutdown = () => {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-console.log('🚀 Adventurer\'s Guild Server is ready!');
+console.log('🚀 Adventurers Guild runtime is ready!');
 console.log(`🎨 UI: http://${NETWORK_HOST}:${UI_PORT}`);
 console.log(`📡 WebSocket: ws://${NETWORK_HOST}:${PORT}`);

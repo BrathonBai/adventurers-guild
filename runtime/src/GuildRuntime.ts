@@ -2,6 +2,7 @@ import WebSocket = require('ws');
 import { v4 as uuidv4 } from 'uuid';
 import {
   AgentConnection,
+  AgentMissionPayload,
   CreatePartyBeaconPayload,
   GuildA2AMessage,
   GuildJoinResult,
@@ -12,9 +13,11 @@ import {
   Party,
   PartyMember,
   PartyBeaconResponse,
+  RequiredMember,
   RespondToPartyBeaconPayload,
 } from './types';
-import { Application, GuildState, QuestAcceptanceError } from './GuildState';
+import { Application, GuildState, ORCHESTRATOR_AGENT_SKILL, QuestAcceptanceError } from './GuildState';
+import { MissionEngine } from './MissionEngine';
 import {
   normalizeRequiredMembers,
   readMessageData,
@@ -38,7 +41,7 @@ type RelayPayload = {
 };
 
 /**
- * Adventurer's Guild runtime:
+ * Adventurers Guild runtime:
  * - member registry
  * - quest publishing and team formation
  * - party coordination
@@ -47,11 +50,12 @@ type RelayPayload = {
  * The current implementation keeps everything in memory so we can stabilize the
  * product model before introducing persistence.
  */
-export class GuildServer {
+export class GuildRuntime {
   private readonly wss: WebSocket.Server;
   private readonly state: GuildState;
   private readonly messageHandlers: Record<string, MessageHandler>;
   private readonly wsBuckets = new Map<WebSocket, { count: number; resetAt: number }>();
+  public readonly missionEngine = new MissionEngine();
   private readonly port: number;
   private readonly bindHost: string;
   private readonly publicHost: string;
@@ -63,12 +67,13 @@ export class GuildServer {
     this.publicHost = publicHost;
     this.wss = new WebSocket.Server({ port, host: bindHost, maxPayload: 64 * 1024 });
     this.state = new GuildState();
+    this.missionEngine.setSnapshotProvider(() => this.state.createPublicSnapshot());
     this.messageHandlers = this.createMessageHandlers();
     this.setupServer();
   }
 
   private setupServer(): void {
-    console.log(`🏰 Adventurer's Guild Server started on port ${this.port}`);
+    console.log(`🏰 Adventurers Guild runtime started on port ${this.port}`);
     console.log(`📡 Bound on: ws://${this.bindHost}:${this.port}`);
     console.log(`📡 Local: ws://localhost:${this.port}`);
     console.log(`📡 Network: ws://${this.publicHost}:${this.port}`);
@@ -130,6 +135,11 @@ export class GuildServer {
       get_recruitment_book: (ws, message) => this.handleGetRecruitmentBook(ws, message),
       join_guild: (ws, message) => this.handleJoinGuild(ws, message),
       a2a_message: (ws, message) => this.handleA2AMessage(ws, message),
+      register_missions: (ws, message) => this.handleRegisterMissions(ws, message),
+      update_mission: (ws, message) => this.handleUpdateMission(ws, message),
+      delete_mission: (ws, message) => this.handleDeleteMission(ws, message),
+      list_my_missions: (ws, message) => this.handleListMyMissions(ws, message),
+      trigger_mission_now: (ws, message) => this.handleTriggerMissionNow(ws, message),
       pong: (_ws, _message) => undefined,
     };
   }
@@ -177,6 +187,10 @@ export class GuildServer {
       'team_message',
       'request_help',
       'a2a_message',
+      'register_missions',
+      'update_mission',
+      'delete_mission',
+      'trigger_mission_now',
     ]);
     const highRiskTypes = new Set([
       'publish_quest',
@@ -233,6 +247,7 @@ export class GuildServer {
     };
 
     this.state.liveAgents.set(agentId, agent);
+    this.missionEngine.registerAgentConnection(agentId, ws);
     this.state.upsertAgentProfile(agentId, message, agent);
 
     console.log(`✅ Agent registered: ${agent.name} (${agentId})`);
@@ -241,7 +256,7 @@ export class GuildServer {
     this.sendToWs(ws, {
       type: 'registered',
       agentId,
-      message: "Successfully registered to Adventurer's Guild",
+      message: 'Successfully registered to Adventurers Guild',
       capabilities: agent.capabilities,
     });
 
@@ -367,6 +382,13 @@ export class GuildServer {
       }
 
       console.log(`✅ ${agent.name} accepted quest ${result.quest.id} as ${result.role}`);
+      if (result.party) {
+        const installedLeaderSkill = this.state.ensureOrchestratorSkillForPartyLeader(result.party);
+        if (installedLeaderSkill) {
+          this.state.save();
+        }
+        this.notifyPartyLeaderSkillInstallation(result.party, installedLeaderSkill);
+      }
 
       this.sendToWs(ws, {
         type: 'quest_accepted',
@@ -597,6 +619,102 @@ export class GuildServer {
     });
   }
 
+  private handleRegisterMissions(ws: WebSocket, message: IncomingMessage): void {
+    const agent = this.requireAgent(ws);
+    if (!agent) {
+      return;
+    }
+
+    const missions = message.data?.missions;
+    if (!Array.isArray(missions)) {
+      this.sendError(ws, 'INVALID_MISSIONS', 'missions must be an array');
+      return;
+    }
+
+    const created: ReturnType<MissionEngine['registerMission']>[] = [];
+    for (const mission of missions) {
+      const payload = this.readMissionPayload(mission);
+      if (!payload) {
+        this.sendError(ws, 'INVALID_MISSION', 'Each mission requires title, description, interval, trigger, action type, and action template');
+        return;
+      }
+      created.push(this.missionEngine.registerMission(agent.id, payload));
+    }
+
+    this.sendToWs(ws, {
+      type: 'missions_registered',
+      data: { missions: created },
+    });
+  }
+
+  private handleUpdateMission(ws: WebSocket, message: IncomingMessage): void {
+    const agent = this.requireAgent(ws);
+    if (!agent) {
+      return;
+    }
+
+    const missionId = readString(message.data?.missionId);
+    const updates = this.readMissionUpdates(message.data?.updates);
+    const updated = missionId ? this.missionEngine.updateMission(agent.id, missionId, updates) : undefined;
+    if (!updated) {
+      this.sendError(ws, 'MISSION_NOT_FOUND', 'Mission not found or not owned by you');
+      return;
+    }
+
+    this.sendToWs(ws, {
+      type: 'mission_updated',
+      data: { mission: updated },
+    });
+  }
+
+  private handleDeleteMission(ws: WebSocket, message: IncomingMessage): void {
+    const agent = this.requireAgent(ws);
+    if (!agent) {
+      return;
+    }
+
+    const missionId = readString(message.data?.missionId);
+    if (!missionId || !this.missionEngine.deleteMission(agent.id, missionId)) {
+      this.sendError(ws, 'MISSION_NOT_FOUND', 'Mission not found or not owned by you');
+      return;
+    }
+
+    this.sendToWs(ws, {
+      type: 'mission_deleted',
+      data: { missionId },
+    });
+  }
+
+  private handleListMyMissions(ws: WebSocket, _message: IncomingMessage): void {
+    const agent = this.requireAgent(ws);
+    if (!agent) {
+      return;
+    }
+
+    this.sendToWs(ws, {
+      type: 'my_missions',
+      data: { missions: this.missionEngine.getMissionsByAgent(agent.id) },
+    });
+  }
+
+  private handleTriggerMissionNow(ws: WebSocket, message: IncomingMessage): void {
+    const agent = this.requireAgent(ws);
+    if (!agent) {
+      return;
+    }
+
+    const missionId = readString(message.data?.missionId);
+    if (!missionId || !this.missionEngine.triggerNow(agent.id, missionId)) {
+      this.sendError(ws, 'MISSION_NOT_TRIGGERED', 'Mission not found, inactive, or agent is offline');
+      return;
+    }
+
+    this.sendToWs(ws, {
+      type: 'mission_triggered',
+      data: { missionId },
+    });
+  }
+
   private handleGetRecruitmentBook(ws: WebSocket, _message: IncomingMessage): void {
     this.sendToWs(ws, {
       type: 'recruitment_book',
@@ -640,6 +758,7 @@ export class GuildServer {
     liveAgent.did = result.agent.did;
     liveAgent.role = 'AGENT';
     liveAgent.apiKey = result.credentials?.apiKey;
+    this.missionEngine.registerAgentConnection(result.agent.id, ws);
 
     this.sendToWs(ws, {
       type: 'guild_joined',
@@ -678,6 +797,7 @@ export class GuildServer {
       name: readString(partyData.name) || 'Untitled party',
       description: readOptionalString(partyData.description),
       leaderId: agent.id,
+      leaderType: 'AGENT',
       members: [],
       maxSize: readNumber(partyData.maxSize) ?? 5,
       status: 'RECRUITING',
@@ -687,8 +807,10 @@ export class GuildServer {
     };
 
     this.state.parties.set(partyId, party);
+    const installedLeaderSkill = this.state.ensureOrchestratorSkillForPartyLeader(party);
     this.state.save();
     this.state.audit({ actorDid: agent.did, actorRole: agent.role, action: 'CREATE_PARTY', targetType: 'party', targetId: partyId });
+    this.notifyPartyLeaderSkillInstallation(party, installedLeaderSkill);
 
     console.log(`🎉 Party created: ${party.name} (${partyId})`);
 
@@ -1183,6 +1305,22 @@ export class GuildServer {
     return record ? principalFromApiKey(record, token) : undefined;
   }
 
+  private notifyPartyLeaderSkillInstallation(party: Party, installed: boolean): void {
+    if (!installed || party.leaderType !== 'AGENT') {
+      return;
+    }
+
+    this.sendToAgent(party.leaderId, {
+      type: 'skill_installation_required',
+      scope: 'party_leader',
+      partyId: party.id,
+      questId: party.questId,
+      skill: ORCHESTRATOR_AGENT_SKILL,
+      reason:
+        'Party leaders must keep multi-agent collaboration moving until explicit completion criteria are met.',
+    });
+  }
+
   private findLiveAgentByDid(did: string): AgentConnection | undefined {
     const profile = Array.from(this.state.agentProfiles.values()).find((agent) => agent.did === did);
     return profile ? this.state.liveAgents.get(profile.id) : undefined;
@@ -1210,6 +1348,72 @@ export class GuildServer {
       },
       delegation: payload.delegation,
     };
+  }
+
+  private readMissionPayload(value: unknown): AgentMissionPayload | undefined {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const payload = value as Record<string, unknown>;
+    const title = readString(payload.title);
+    const description = readString(payload.description);
+    const checkIntervalMinutes = readNumber(payload.checkIntervalMinutes);
+    const triggerCondition = readString(payload.triggerCondition);
+    const actionType = this.readMissionActionType(payload.actionType);
+    const actionTemplate = readString(payload.actionTemplate);
+
+    if (!title || !description || !checkIntervalMinutes || !triggerCondition || !actionType || !actionTemplate) {
+      return undefined;
+    }
+
+    return {
+      title,
+      description,
+      checkIntervalMinutes,
+      triggerCondition,
+      actionType,
+      actionTemplate,
+      active: typeof payload.active === 'boolean' ? payload.active : undefined,
+    };
+  }
+
+  private readMissionUpdates(value: unknown): Partial<AgentMissionPayload> {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+
+    const payload = value as Record<string, unknown>;
+    const updates: Partial<AgentMissionPayload> = {};
+    const title = readString(payload.title);
+    const description = readString(payload.description);
+    const checkIntervalMinutes = readNumber(payload.checkIntervalMinutes);
+    const triggerCondition = readString(payload.triggerCondition);
+    const actionType = this.readMissionActionType(payload.actionType);
+    const actionTemplate = readString(payload.actionTemplate);
+
+    if (title) updates.title = title;
+    if (description) updates.description = description;
+    if (checkIntervalMinutes) updates.checkIntervalMinutes = checkIntervalMinutes;
+    if (triggerCondition) updates.triggerCondition = triggerCondition;
+    if (actionType) updates.actionType = actionType;
+    if (actionTemplate) updates.actionTemplate = actionTemplate;
+    if (typeof payload.active === 'boolean') updates.active = payload.active;
+
+    return updates;
+  }
+
+  private readMissionActionType(value: unknown): AgentMissionPayload['actionType'] | undefined {
+    if (
+      value === 'PUBLISH_QUEST' ||
+      value === 'BROADCAST_BEACON' ||
+      value === 'A2A_MESSAGE' ||
+      value === 'SELF_ASSIGN'
+    ) {
+      return value;
+    }
+
+    return undefined;
   }
 
   private sendError(ws: WebSocket, code: string, message: string): void {
@@ -1258,6 +1462,7 @@ export class GuildServer {
     }
 
     console.log(`👋 Agent disconnected: ${agent.name} (${agent.id})`);
+    this.missionEngine.unregisterAgentConnection(agent.id, ws);
     this.state.liveAgents.delete(agent.id);
     this.state.markAgentOffline(agent.id);
     this.wsBuckets.delete(ws);
@@ -1293,6 +1498,8 @@ export class GuildServer {
   }
 
   public close(): void {
+    this.missionEngine.shutdown();
+
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = undefined;
@@ -1300,7 +1507,7 @@ export class GuildServer {
 
     this.wss.clients.forEach((client) => client.close());
     this.wss.close();
-    console.log('🏰 Guild Server closed');
+    console.log('🏰 Guild runtime closed');
   }
 
   public getGuildSnapshot() {
@@ -1427,6 +1634,26 @@ export class GuildServer {
 
   public acceptQuest(questId: string, actorDid: string, role: string, actorRole?: string) {
     return this.state.acceptQuest(questId, actorDid, role, actorRole);
+  }
+
+  public publishAgentInitiatedQuest(params: {
+    title: string;
+    description: string;
+    tags: string[];
+    publisherDid: string;
+    requiredMembers: RequiredMember[];
+    triggeredBy: 'MISSION' | 'BEACON_RESPONSE' | 'A2A_REQUEST';
+    sourceMissionId?: string;
+  }) {
+    return this.state.publishAgentInitiatedQuest(params);
+  }
+
+  public checkAgentActionRateLimit(agentId: string, maxActionsPerHour?: number) {
+    return this.state.checkAgentActionRateLimit(agentId, maxActionsPerHour);
+  }
+
+  public revokeAgentInitiatedQuest(questId: string, actorDid?: string, actorRole?: string) {
+    return this.state.revokeAgentInitiatedQuest(questId, actorDid, actorRole);
   }
 
   public resolveDidDocument(did: string, publicBaseUrl: string) {
