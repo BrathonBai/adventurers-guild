@@ -6,7 +6,7 @@
 
 ## 1. 目标与边界
 
-**目标**：让 Brathon 的多个物理设备上的多个 Agent（不同 LLM 后端）通过 Adventurer's Guild Server 直接协作，不再由 Brathon 当"翻译官"。
+**目标**：让 Brathon 的多个物理设备上的多个 Agent（不同 LLM 后端）通过 Adventurers Guild 直接协作，不再由 Brathon 当"翻译官"。
 
 **Agent 清单**：
 
@@ -27,7 +27,7 @@
 
 ## 2. 总体架构
 
-**v1 Guild Server 不动一行代码**。新增两件事：
+**v1 Guild Runtime 不动一行代码**。新增两件事：
 
 1. 部署包（Docker + nginx）
 2. `guild-client-sdk` 独立 npm 包（TypeScript / Node 24+）
@@ -51,7 +51,7 @@
 
 **独立 repo** `guild-client-sdk`（npm 包形态），不放在主仓作为子目录。
 
-理由：bridge 装的是 npm 包，不该跟 server 强耦合；SDK 自己的版本节奏也不该被 server 拖累。
+理由：bridge 装的是 npm 包，不该跟 runtime 强耦合；SDK 自己的版本节奏也不该被 runtime 拖累。
 
 ```
 guild-client-sdk/
@@ -83,7 +83,7 @@ guild-client-sdk/
 
 ```typescript
 const guild = await GuildClient.open({
-  serverUrl: 'https://guild.brathon.dev',
+  runtimeUrl: 'https://guild.brathon.dev',
   identityPath: '~/.guild/identity.json',
 });
 await guild.readRecruitmentBook();          // 给用户看
@@ -95,7 +95,7 @@ await guild.submitApplication(payload);     // 走 PENDING_REVIEW
 
 ```typescript
 const guild = await GuildClient.connect({
-  serverUrl: 'https://guild.brathon.dev',
+  runtimeUrl: 'https://guild.brathon.dev',
   identityPath: '~/.guild/identity.json',
 });
 await guild.connect();   // WS register
@@ -115,7 +115,7 @@ await guild.snapshot();
 ```
 guildctl apply       # 读 recruitment book + 提申请
 guildctl approve     # 管理员 token 模式，批准申请并发 apiKey
-guildctl status      # 展示当前 identity + 服务器状态
+guildctl status      # 展示当前 identity + 运行时状态
 guildctl beacon      # 发布 party beacon
 guildctl beacons     # 列出当前所有 beacon
 guildctl send        # 发 A2A 消息
@@ -183,7 +183,7 @@ examples/openclaw-skill/
 ```markdown
 # guild-member
 
-通过 Adventurer's Guild Server 跟其他设备上的 Agent 协作。
+通过 Adventurers Guild 跟其他设备上的 Agent 协作。
 
 ## 用法
 
@@ -203,9 +203,9 @@ ORION 自己是 guild member，bridge 即"会调用 SDK 的 openclaw runtime"。
 ```dockerfile
 FROM node:24-alpine
 WORKDIR /app
-COPY server/package*.json ./
+COPY runtime/package*.json ./
 RUN npm ci --production
-COPY server/dist ./dist
+COPY runtime/dist ./dist
 EXPOSE 3001 3000
 VOLUME ["/data"]
 CMD ["node", "dist/index.js"]
@@ -280,7 +280,7 @@ server {
 
 ## 10. Weekend 可演示目标
 
-> 1 VPS 跑 guild server + Mac 上 ORION 和 codex 接入 + Win 上 opencode 接入
+> 1 VPS 跑 guild runtime + Mac 上 ORION 和 codex 接入 + Win 上 opencode 接入
 > 三方通过 Party Beacon 组建一个"任务组"，端到端完成一次协作：
 > ORION 发 beacon → opencode 接力 → codex review → 完结
 

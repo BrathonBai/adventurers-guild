@@ -5,7 +5,7 @@
 ```
 adventurers-guild/
 ├── ui/                    # 前端源代码（React + Vite）
-├── server/                # 后端服务器（WebSocket + Express）
+├── runtime/                # 运行时（WebSocket + Express）
 ├── dist/                  # 前端构建产物（自动生成）
 ├── package.json           # 根项目配置
 └── vite.config.ts         # Vite 构建配置
@@ -19,8 +19,8 @@ adventurers-guild/
 # 根目录安装前端依赖
 npm install
 
-# 服务器目录安装后端依赖
-cd server
+# 运行时目录安装运行时依赖
+cd runtime
 npm install
 cd ..
 ```
@@ -34,8 +34,8 @@ cd ..
 npm run dev
 # 访问 http://localhost:5173
 
-# 终端 2：启动 WebSocket 服务器
-cd server
+# 终端 2：启动 WebSocket 运行时
+cd runtime
 npm run dev
 # WebSocket: ws://localhost:3000
 ```
@@ -43,9 +43,9 @@ npm run dev
 **方式二：集成运行**
 
 ```bash
-# 构建前端 + 启动完整服务器
+# 构建前端 + 启动完整运行时
 npm run build
-cd server
+cd runtime
 npm start
 # UI: http://localhost:3001
 # WebSocket: ws://localhost:3000
@@ -57,17 +57,17 @@ npm start
 # 1. 构建前端
 npm run build
 
-# 2. 构建后端
-cd server
+# 2. 构建运行时
+cd runtime
 npm run build
 
-# 3. 启动服务器
+# 3. 启动运行时
 npm start
 ```
 
 ## 环境变量
 
-创建 `server/.env` 文件：
+创建 `runtime/.env` 文件：
 
 ```env
 PORT=3000          # WebSocket 端口
@@ -114,7 +114,7 @@ GUILD_DB_PATH=../data/guild.sqlite
 
 - **5173**: 前端开发服务器（仅开发模式，由 Vite 提供）
 - **3001**: 生产 UI 和 HTTP API（由 Express 提供，`UI_PORT` 默认值）
-- **3000**: WebSocket 服务器（Agent 连接）
+- **3000**: WebSocket 运行时（Agent 连接）
 
 ## 构建产物
 
@@ -129,13 +129,13 @@ dist/
 └── ...
 ```
 
-服务器会自动从 `dist/` 目录提供静态文件。
+运行时会自动从 `dist/` 目录提供静态文件。
 
 ## 开发工作流
 
 1. **前端开发**: 修改 `ui/` 下的文件，Vite 自动热重载
-2. **后端开发**: 修改 `server/src/` 下的文件，重启 `npm run dev`
-3. **测试集成**: 运行 `npm run build` 后启动服务器
+2. **运行时开发**: 修改 `runtime/src/` 下的文件，重启 `npm run dev`
+3. **测试集成**: 运行 `npm run build` 后启动运行时
 
 ## 部署到生产环境
 
@@ -147,7 +147,7 @@ npm install -g pm2
 
 # 构建项目
 npm run build
-cd server
+cd runtime
 npm run build
 
 # 启动服务
@@ -170,24 +170,24 @@ WORKDIR /app
 
 # 复制依赖文件
 COPY package*.json ./
-COPY server/package*.json ./server/
+COPY runtime/package*.json ./runtime/
 
 # 安装依赖
 RUN npm install
-RUN cd server && npm install
+RUN cd runtime && npm install
 
 # 复制源代码
 COPY . .
 
 # 构建
 RUN npm run build
-RUN cd server && npm run build
+RUN cd runtime && npm run build
 
 # 暴露端口
 EXPOSE 3000 3001
 
 # 启动
-CMD ["node", "server/dist/index.js"]
+CMD ["node", "runtime/dist/index.js"]
 ```
 
 ```bash
@@ -204,13 +204,13 @@ docker run -p 3000:3000 -p 3001:3001 adventurers-guild
 
 1. 检查 `dist/` 目录是否存在
 2. 运行 `npm run build` 重新构建
-3. 检查服务器日志
+3. 检查运行时日志
 
 ### WebSocket 连接失败
 
 1. 检查端口 3000 是否被占用
 2. 检查防火墙设置
-3. 查看服务器日志：`pm2 logs adventurers-guild`
+3. 查看运行时日志：`pm2 logs adventurers-guild`
 
 ### 构建失败
 

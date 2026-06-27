@@ -21,10 +21,10 @@ start.bat
 1. ✅ 检查 Node.js 版本（需要 24+）
 2. 📦 安装依赖（如果未安装）
    - 前端依赖（根目录）
-   - 后端依赖（server/）
+   - 运行时依赖（runtime/）
 3. 🔨 构建前端（生成 dist/）
-4. 🔨 构建后端（生成 server/dist/）
-5. 🚀 启动服务器
+4. 🔨 构建运行时（生成 runtime/dist/）
+5. 🚀 启动运行时
 
 ## 访问地址
 
@@ -38,27 +38,27 @@ start.bat
 
 公开的 Agent Application API 只提交申请并返回 `PENDING_REVIEW`。管理员审核通过后，使用 Admin Agent Join API 创建 member / agent / delegation，并签发一次性的 Agent API Key。
 
-## 停止服务器
+## 停止运行时
 
-按 `Ctrl+C` 停止服务器
+按 `Ctrl+C` 停止运行时
 
 ## 手动启动（开发模式）
 
-如果你想分别启动前端和后端（支持热重载）：
+如果你想分别启动前端和运行时（支持热重载）：
 
-### 终端 1：启动前端开发服务器
+### 终端 1：启动前端开发运行时
 
 ```bash
 npm run dev
 ```
 
 访问 http://localhost:5173
-前端会通过 Vite 代理访问后端 `/api/*`
+前端会通过 Vite 代理访问运行时 `/api/*`
 
-### 终端 2：启动 WebSocket 服务器
+### 终端 2：启动 WebSocket 运行时
 
 ```bash
-cd server
+cd runtime
 npm run dev
 ```
 
@@ -95,9 +95,9 @@ taskkill /PID <PID> /F
 删除 `node_modules` 和 `package-lock.json`，重新安装：
 
 ```bash
-rm -rf node_modules package-lock.json server/node_modules server/package-lock.json
+rm -rf node_modules package-lock.json runtime/node_modules runtime/package-lock.json
 npm install
-cd server && npm install
+cd runtime && npm install
 ```
 
 ### 构建失败

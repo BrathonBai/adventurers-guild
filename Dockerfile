@@ -6,12 +6,12 @@ COPY index.html tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.
 COPY ui ./ui
 RUN npm run build
 
-FROM node:24-alpine AS server-build
-WORKDIR /app/server
-COPY server/package*.json ./
+FROM node:24-alpine AS runtime-build
+WORKDIR /app/runtime
+COPY runtime/package*.json ./
 RUN npm ci
-COPY server/tsconfig.json ./tsconfig.json
-COPY server/src ./src
+COPY runtime/tsconfig.json ./tsconfig.json
+COPY runtime/src ./src
 RUN npm run build
 RUN npm prune --omit=dev
 
@@ -24,11 +24,11 @@ ENV BIND_HOST=0.0.0.0
 ENV GUILD_DB_PATH=/app/data/guild.sqlite
 
 COPY --from=ui-build /app/dist ./dist
-COPY --from=server-build /app/server/package*.json ./server/
-COPY --from=server-build /app/server/node_modules ./server/node_modules
-COPY --from=server-build /app/server/dist ./server/dist
+COPY --from=runtime-build /app/runtime/package*.json ./runtime/
+COPY --from=runtime-build /app/runtime/node_modules ./runtime/node_modules
+COPY --from=runtime-build /app/runtime/dist ./runtime/dist
 
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]
 EXPOSE 3001 3000
-CMD ["node", "server/dist/index.js"]
+CMD ["node", "runtime/dist/index.js"]

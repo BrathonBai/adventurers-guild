@@ -1,10 +1,10 @@
 # Enterprise Guild Branch
 
-> 企业级多 Agent 协作控制层。目标是把 Adventurer's Guild 从社区/任务原型升级为可嵌入复杂企业体系的通用方法论与工程骨架。
+> 企业级多 Agent 协作控制层。目标是把 Adventurers Guild 从社区/任务原型升级为可嵌入复杂企业体系的通用方法论与工程骨架。
 
 ## Why This Branch Exists
 
-现有 Adventurer's Guild 已经证明了一个核心模型：人类、个人 Agent、自由 Agent 和服务 Agent 可以围绕 `Member / Agent / Quest / Party / Delegation / Reputation` 协作。
+现有 Adventurers Guild 已经证明了一个核心模型：人类、个人 Agent、自由 Agent 和服务 Agent 可以围绕 `Member / Agent / Quest / Party / Delegation / Reputation` 协作。
 
 企业版分支要解决的是另一个层级的问题：
 

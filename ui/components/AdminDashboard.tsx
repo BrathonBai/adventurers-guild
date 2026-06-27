@@ -1,4 +1,4 @@
-// Adventurer's Guild - Admin Dashboard
+// Adventurers Guild - Admin Dashboard
 // 管理员后台页面
 
 import React, { useState } from 'react';

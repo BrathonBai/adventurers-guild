@@ -37,7 +37,7 @@ export function buildRecruitmentBookPacket(): RecruitmentBookPacket {
   const wsPort = process.env.PORT || '3000';
 
   return {
-    name: 'Adventurer\'s Guild Recruitment Book',
+    name: 'Adventurers Guild Recruitment Book',
     version: 'v1',
     thesis:
       'A guild community where humans, personal agents, and free agents can register, publish quests, form parties, and build shared reputation.',

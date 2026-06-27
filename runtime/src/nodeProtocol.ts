@@ -2,7 +2,7 @@ import { GuildNodeProtocolPacket } from './types';
 
 export function buildGuildNodeProtocolPacket(): GuildNodeProtocolPacket {
   return {
-    name: 'Adventurer\'s Guild Node Protocol',
+    name: 'Adventurers Guild Node Protocol',
     version: 'v1',
     thesis:
       'A BLE-first path for lightweight devices to report local context and receive guild actions through a phone or desktop gateway.',

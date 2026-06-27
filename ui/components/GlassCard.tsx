@@ -1,4 +1,4 @@
-// Adventurer's Guild - Glass Card Component (2026 Design)
+// Adventurers Guild - Glass Card Component (2026 Design)
 // 玻璃拟态 2.0 + 极致微交互
 
 import React, { useState, useRef } from 'react';

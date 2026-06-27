@@ -41,10 +41,10 @@ function App() {
       ]);
       setSnapshot(nextSnapshot);
       setRecruitmentBook(nextBook);
-      setConnectionNote(isAdminRoute ? '已连接后端，当前展示管理员完整 snapshot。' : '已连接后端，当前展示公开 guild snapshot。');
+      setConnectionNote(isAdminRoute ? '已连接运行时，当前展示管理员完整 snapshot。' : '已连接运行时，当前展示公开 guild snapshot。');
     } catch (error) {
       console.error(error);
-      setConnectionNote(isAdminRoute ? '管理员完整快照不可用，请确认后台登录状态。' : '后端未连接，当前回退到本地 demo 数据。');
+      setConnectionNote(isAdminRoute ? '管理员完整快照不可用，请确认登录状态。' : '运行时未连接，当前回退到本地 demo 数据。');
     } finally {
       setIsSyncing(false);
     }

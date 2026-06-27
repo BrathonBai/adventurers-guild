@@ -11,6 +11,7 @@ import {
   GuildDidDocument,
   GuildConnectionResolution,
   GuildPermissionCheck,
+  GuildPublicSnapshotRecord,
   GuildDelegationRecord,
   GuildMemberRecord,
   GuildQuest,
@@ -19,6 +20,7 @@ import {
   PartyBeacon,
   PartyBeaconResponse,
   PartyMember,
+  RequiredMember,
   RespondToPartyBeaconPayload,
   IncomingMessage,
   JoinGuildPayload,
@@ -52,6 +54,14 @@ export type QuestAcceptanceResult = {
   party?: Party;
   acceptedUnit: GuildUnitIdentity;
   role: string;
+};
+
+export const ORCHESTRATOR_AGENT_SKILL = {
+  name: 'orchestrator-agent',
+  sourcePath: '/Users/rongchongbai/.codex/skills/orchestrator-agent',
+  installedFor: 'PARTY_LEADER' as const,
+  purpose:
+    'Equip the party leader to own workflow state, task routing, retries, validation, resume behavior, and completion criteria until multi-agent work is genuinely complete.',
 };
 
 export class QuestAcceptanceError extends Error {
@@ -108,6 +118,7 @@ export class GuildState {
 
     state.agents.forEach((agent) => {
       agent.connectionUri ||= createGuildConnectionUri('agent', agent.handle || agent.id);
+      agent.installedSkills ||= [];
       this.agentProfiles.set(agent.id, agent);
     });
 
@@ -199,7 +210,7 @@ export class GuildState {
     };
   }
 
-  createPublicSnapshot(): Partial<GuildSnapshotRecord> {
+  createPublicSnapshot(): GuildPublicSnapshotRecord {
     const publicAgents = Array.from(this.agentProfiles.values()).filter((agent) => this.isPubliclyDiscoverableAgent(agent));
     const publicAgentIds = new Set(publicAgents.map((agent) => agent.id));
     const publicUnitIds = new Set([...Array.from(this.members.keys()), ...publicAgentIds]);
@@ -322,6 +333,11 @@ export class GuildState {
       connectionUri: '',
       operatorNotes: '',
       capabilities: this.toPublicTextList(agent.capabilities),
+      installedSkills: (agent.installedSkills ?? []).map((skill) => ({
+        ...skill,
+        sourcePath: '',
+        purpose: this.toPublicText(skill.purpose),
+      })),
       reputation: {
         ...agent.reputation,
         badges: this.toPublicTextList(agent.reputation.badges),
@@ -549,6 +565,98 @@ export class GuildState {
     return beacon;
   }
 
+  publishAgentInitiatedQuest(params: {
+    title: string;
+    description: string;
+    tags: string[];
+    publisherDid: string;
+    requiredMembers: RequiredMember[];
+    triggeredBy: 'MISSION' | 'BEACON_RESPONSE' | 'A2A_REQUEST';
+    sourceMissionId?: string;
+  }): GuildQuest {
+    const publisher = this.resolveUnitByDid(params.publisherDid);
+    if (!publisher || publisher.unitType !== 'AGENT') {
+      throw new Error('publisherDid must be a registered agent DID');
+    }
+
+    const agentProfile = this.agentProfiles.get(publisher.id);
+    const quest: GuildQuest = {
+      id: this.nextQuestId(),
+      title: params.title,
+      description: params.description,
+      publisherId: publisher.id,
+      publisherMemberId: agentProfile?.ownerMemberId,
+      publisherAgentId: publisher.id,
+      tags: params.tags,
+      requiredMembers: params.requiredMembers,
+      subtasks: [],
+      status: params.requiredMembers.length > 0 ? 'FORMING_PARTY' : 'OPEN',
+      teamMembers: [publisher.id],
+      createdAt: Date.now(),
+      triggeredBy: params.triggeredBy,
+      sourceMissionId: params.sourceMissionId,
+    };
+
+    this.quests.set(quest.id, quest);
+    const party = this.ensurePartyForQuest(quest);
+    this.activityFeed.unshift({
+      id: `activity-${Date.now()}`,
+      kind: 'QUEST_POSTED',
+      title: `${publisher.displayName} 自主发布了 Quest`,
+      detail: `${quest.title} | 驱动力: ${params.triggeredBy}`,
+      timestampLabel: 'just now',
+    });
+    this.save();
+    this.audit({
+      actorDid: params.publisherDid,
+      actorRole: 'AGENT',
+      action: 'AGENT_PUBLISH_QUEST',
+      targetType: 'quest',
+      targetId: quest.id,
+      metadata: {
+        partyId: party.id,
+        triggeredBy: params.triggeredBy,
+        sourceMissionId: params.sourceMissionId,
+      },
+    });
+
+    return quest;
+  }
+
+  checkAgentActionRateLimit(agentId: string, maxActionsPerHour = 10): boolean {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const recentQuests = Array.from(this.quests.values()).filter(
+      (quest) => quest.publisherAgentId === agentId && quest.createdAt > oneHourAgo,
+    ).length;
+    const recentBeacons = Array.from(this.partyBeacons.values()).filter((beacon) => {
+      const publisher = this.resolveUnitByDid(beacon.publisherDid);
+      return publisher?.id === agentId && beacon.createdAt > oneHourAgo;
+    }).length;
+
+    return recentQuests + recentBeacons < maxActionsPerHour;
+  }
+
+  revokeAgentInitiatedQuest(questId: string, actorDid?: string, actorRole?: string): GuildQuest | undefined {
+    const quest = this.quests.get(questId);
+    if (!quest) {
+      return undefined;
+    }
+
+    const previousStatus = quest.status;
+    quest.status = 'CANCELLED';
+    this.save();
+    this.audit({
+      actorDid,
+      actorRole,
+      action: 'REVOKE_AGENT_ACTION',
+      targetType: 'quest',
+      targetId: quest.id,
+      metadata: { previousStatus, triggeredBy: quest.triggeredBy, sourceMissionId: quest.sourceMissionId },
+    });
+
+    return quest;
+  }
+
   canPublishPartyBeacon(publisherDid: string): GuildPermissionCheck {
     const unit = this.resolveUnitByDid(publisherDid);
     if (!unit) {
@@ -617,7 +725,30 @@ export class GuildState {
 
     this.parties.set(party.id, party);
     quest.partyId = party.id;
+    this.ensureOrchestratorSkillForPartyLeader(party);
     return party;
+  }
+
+  ensureOrchestratorSkillForPartyLeader(party: Party): boolean {
+    if (party.leaderType !== 'AGENT') {
+      return false;
+    }
+
+    const leader = this.agentProfiles.get(party.leaderId);
+    if (!leader) {
+      return false;
+    }
+
+    leader.installedSkills ||= [];
+    if (leader.installedSkills.some((skill) => skill.name === ORCHESTRATOR_AGENT_SKILL.name)) {
+      return false;
+    }
+
+    leader.installedSkills.push({
+      ...ORCHESTRATOR_AGENT_SKILL,
+      installedAt: Date.now(),
+    });
+    return true;
   }
 
   acceptQuest(questId: string, actorDid: string, role: string, actorRole?: string): QuestAcceptanceResult | undefined {
@@ -913,6 +1044,7 @@ export class GuildState {
             status: beforeParty.status,
             lookingFor: beforeParty.lookingFor,
             requiredSkills: beforeParty.requiredSkills,
+            leaderSkillCount: this.agentProfiles.get(beforeParty.leaderId)?.installedSkills?.length ?? 0,
             members: beforeParty.members.map((member) => ({
               userId: member.userId,
               role: member.role,
@@ -927,6 +1059,7 @@ export class GuildState {
         status: party.status,
         lookingFor: party.lookingFor,
         requiredSkills: party.requiredSkills,
+        leaderSkillCount: this.agentProfiles.get(party.leaderId)?.installedSkills?.length ?? 0,
         members: party.members.map((member) => ({
           userId: member.userId,
           role: member.role,
@@ -964,6 +1097,7 @@ export class GuildState {
         unitType: this.getUnitTypeById(unitId),
       });
     });
+    this.ensureOrchestratorSkillForPartyLeader(party);
   }
 
   private buildQuestPartyMembers(quest: GuildQuest): PartyMember[] {
@@ -1105,6 +1239,7 @@ export class GuildState {
 
     this.parties.set(partyId, party);
     beacon.partyId = partyId;
+    this.ensureOrchestratorSkillForPartyLeader(party);
 
     if (beacon.questId) {
       const quest = this.quests.get(beacon.questId);
@@ -1241,6 +1376,7 @@ export class GuildState {
         existing?.operatorNotes ||
         'Runtime registration',
       capabilities: liveAgent.capabilities,
+      installedSkills: existing?.installedSkills || [],
       reputation: existing?.reputation || {
         score: 500,
         tier: 'REGULAR',
@@ -1322,6 +1458,7 @@ export class GuildState {
       ownerMemberId: ownerMemberId || existing?.ownerMemberId,
       operatorNotes: payload.operatorNotes || existing?.operatorNotes || 'Joined via recruitment book.',
       capabilities: payload.capabilities.length > 0 ? payload.capabilities : existing?.capabilities || [],
+      installedSkills: existing?.installedSkills || [],
       reputation:
         existing?.reputation || {
           score: 500,

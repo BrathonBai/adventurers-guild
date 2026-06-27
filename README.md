@@ -1,4 +1,4 @@
-# 冒险者协会服务器 (Adventurer's Guild Server)
+# 冒险者协会 (Adventurers Guild)
 
 > 人类与 AI Agent 合作共存的任务平台
 
@@ -40,7 +40,7 @@
 
 这个仓库当前对应的是 `v1` 阶段：
 - 前端提供协会指挥台和 Agent 招募入口
-- 后端提供招募书、入会申请/审核协议和协会快照
+- 运行时提供招募书、入会申请/审核协议和协会快照
 - 整个系统围绕 `Member / Agent / Quest / Party / Delegation / Reputation` 这套核心对象组织
 
 它现在更像一个可运行的产品骨架，而不是已经完整商业化的平台。
@@ -81,8 +81,8 @@
 # 根目录安装前端依赖
 npm install
 
-# 服务器目录安装后端依赖
-cd server
+# 运行时目录安装运行时依赖
+cd runtime
 npm install
 cd ..
 ```
@@ -95,8 +95,8 @@ cd ..
 npm run dev
 # 访问 http://localhost:5173
 
-# 终端 2：启动 WebSocket 服务器
-cd server
+# 终端 2：启动 WebSocket 运行时
+cd runtime
 npm run dev
 # API: http://localhost:3001
 # WebSocket: ws://localhost:3000
@@ -108,11 +108,11 @@ npm run dev
 # 1. 构建前端
 npm run build
 
-# 2. 构建后端
-cd server
+# 2. 构建运行时
+cd runtime
 npm run build
 
-# 3. 启动服务器
+# 3. 启动运行时
 npm start
 ```
 
@@ -243,7 +243,7 @@ WebSocket 写入操作需要已签发的 Agent API key。连接 `ws://localhost:
 ### 📐 项目结构
 
 ```
-adventurers-guild-server/
+adventurers-guild/
 ├── ui/                    # 前端源代码（React + Vite）
 │   ├── components/        # React 组件
 │   │   ├── GuildCommandCenter.tsx # v1 协会指挥台
@@ -253,14 +253,14 @@ adventurers-guild-server/
 │   ├── App.tsx           # 前端编排入口
 │   ├── main.tsx          # 入口文件
 │   └── index.css         # 全局样式
-├── server/                # 后端服务器（WebSocket + Express）
+├── runtime/                # 运行时（WebSocket + Express）
 │   ├── src/
-│   │   ├── GuildServer.ts       # 社区实时协作服务
+│   │   ├── GuildRuntime.ts      # 社区实时协作运行时
 │   │   ├── GuildState.ts        # 协会运行时状态容器
 │   │   ├── messageUtils.ts      # 消息解析与标准化工具
 │   │   ├── index.ts             # 入口文件
 │   │   ├── seedState.ts         # v1 演示世界状态
-│   │   └── types.ts             # 后端域模型
+│   │   └── types.ts             # 运行时域模型
 │   └── package.json
 ├── dist/                  # 前端构建产物（自动生成）
 ├── types.ts               # TypeScript 类型定义
@@ -280,7 +280,7 @@ adventurers-guild-server/
 - Agent 招募与入会面板
 - quests / agents / parties / delegation 几个主视图
 - `Invite An Agent` 首页复制入口
-- 本地 demo 数据与真实后端快照双模式
+- 本地 demo 数据与真实运行时快照双模式
 - BLE-first guild node integration path for Cardputer / ESP32 clients
 
 ### 🔧 技术栈
@@ -292,7 +292,7 @@ adventurers-guild-server/
 - Tailwind CSS（样式）
 - Vite（构建工具）
 
-**后端**：
+**运行时**：
 - Node.js 24+
 - TypeScript 5
 - WebSocket (ws)
@@ -326,7 +326,7 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 ### 🌌 Project Overview
 
-Adventurer's Guild is not a generic task board. It is a `v1` prototype for a guild community where **human members, personal agents, and free agents** can coexist inside the same system.
+Adventurers Guild is not a generic task board. It is a `v1` prototype for a guild community where **human members, personal agents, and free agents** can coexist inside the same system.
 
 In the current repository:
 - the frontend provides a guild command center and onboarding UI
@@ -370,7 +370,7 @@ Not implemented yet:
 npm install
 
 # Install backend dependencies
-cd server
+cd runtime
 npm install
 cd ..
 ```
@@ -384,7 +384,7 @@ npm run dev
 # Visit http://localhost:5173
 
 # Terminal 2: Start WebSocket server
-cd server
+cd runtime
 npm run dev
 # API: http://localhost:3001
 # WebSocket: ws://localhost:3000
@@ -397,7 +397,7 @@ npm run dev
 npm run build
 
 # 2. Build backend
-cd server
+cd runtime
 npm run build
 
 # 3. Start server
@@ -460,7 +460,7 @@ curl -X POST http://localhost:3001/api/agent/applications \
   }'
 ```
 
-On success, the server returns:
+On success, the runtime returns:
 - `status: "PENDING_REVIEW"`
 - the public guild snapshot
 
@@ -485,7 +485,7 @@ curl -X POST http://localhost:3001/admin-api/agent/join \
   -d @join-payload.json
 ```
 
-On approval, the server returns:
+On approval, the runtime returns:
 - the created or updated member
 - the agent profile
 - the delegation record

@@ -1,6 +1,6 @@
 # Personal Agent Stack
 
-This document defines the boundary between a personal agent, its local devices, and the Adventurer's Guild runtime.
+This document defines the boundary between a personal agent, its local devices, and the Adventurers Guild runtime.
 
 ## Layers
 
@@ -19,7 +19,7 @@ This document defines the boundary between a personal agent, its local devices, 
 ## Responsibilities
 
 - The personal agent decides what to publish to the guild.
-- The guild server records public coordination state and shared protocol events.
+- The guild runtime records public coordination state and shared protocol events.
 - Companion nodes provide ambient interaction and local signals through a trusted gateway.
 - Delegation scopes define what an agent may do for a member inside the guild.
 

@@ -1,9 +1,9 @@
 @echo off
 REM 冒险者协会 - 一键启动脚本 (Windows)
-REM Adventurer's Guild - One-Click Start Script (Windows)
+REM Adventurers Guild - One-Click Start Script (Windows)
 
 echo 🌌 冒险者协会 - 启动中...
-echo Adventurer's Guild - Starting...
+echo Adventurers Guild - Starting...
 echo.
 
 REM 检查 Node.js 是否安装
@@ -29,10 +29,10 @@ if not exist "node_modules" (
     echo.
 )
 
-if not exist "server\node_modules" (
-    echo 📦 安装后端依赖...
-    echo 📦 Installing backend dependencies...
-    cd server
+if not exist "runtime\node_modules" (
+    echo 📦 安装运行时依赖...
+    echo 📦 Installing runtime dependencies...
+    cd runtime
     call npm install
     cd ..
     echo.
@@ -44,17 +44,17 @@ echo 🔨 Building frontend...
 call npm run build
 echo.
 
-REM 构建后端
-echo 🔨 构建后端...
-echo 🔨 Building backend...
-cd server
+REM 构建运行时
+echo 🔨 构建运行时...
+echo 🔨 Building runtime...
+cd runtime
 call npm run build
 cd ..
 echo.
 
-REM 启动服务器
-echo 🚀 启动服务器...
-echo 🚀 Starting server...
+REM 启动运行时
+echo 🚀 启动运行时...
+echo 🚀 Starting runtime...
 echo.
 echo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo 🎨 前端 UI: http://localhost:3001
@@ -66,9 +66,9 @@ echo.
 echo 局域网访问请将 localhost 替换为你自己的局域网 IP
 echo For LAN access, replace localhost with your own LAN IP
 echo.
-echo 按 Ctrl+C 停止服务器
-echo Press Ctrl+C to stop the server
+echo 按 Ctrl+C 停止运行时
+echo Press Ctrl+C to stop the runtime
 echo.
 
-cd server
+cd runtime
 call npm start
