@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}
+body{margin:0;width:900px;height:383px;background:#f2eee4;color:#14110d;
+  font-family:-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.02) 0 1px,transparent 1px 3px);overflow:hidden;position:relative}
+.serif{font-family:"Songti SC","Source Han Serif SC",Georgia,serif;font-weight:600}
+.mono{font-family:"SF Mono",Menlo,monospace}
+.seal{position:absolute;left:36px;top:30px;width:34px;height:34px;background:#b23a25;color:#fff;display:grid;place-items:center;font-size:17px;transform:rotate(-4deg);border-radius:2px}
+.brand{position:absolute;left:82px;top:32px;font-size:15px;letter-spacing:.02em}
+.brand small{display:block;font-size:9px;letter-spacing:.22em;color:#8a8177;margin-top:3px}
+.eyebrow{position:absolute;right:36px;top:34px;font-size:9px;letter-spacing:.2em;color:#8a8177}
+h1{position:absolute;left:36px;top:84px;margin:0;font-size:68px;line-height:1.02;letter-spacing:-.02em}
+.sub{position:absolute;left:38px;top:172px;font-size:14px;color:#5c554c;letter-spacing:.02em}
+.rail{position:absolute;left:36px;right:36px;top:246px;height:1px;background:#d5ccba}
+.node{position:absolute;top:212px;width:150px;border:1px solid #d5ccba;background:#fbf8f1;padding:9px 11px;border-radius:3px}
+.node .n{font-size:13px;font-weight:600}
+.node .d{font-size:9px;color:#8a8177;margin-top:3px;font-family:"SF Mono",Menlo,monospace}
+.left{left:36px}.right{right:36px}
+.dash{position:absolute;left:196px;right:196px;top:238px;border-top:1.5px dashed #b23a25;opacity:.55}
+.tag{position:absolute;left:50%;top:250px;transform:translateX(-50%);font-size:9px;color:#b23a25;letter-spacing:.14em;background:#f2eee4;padding:0 8px}
+.horizon{position:absolute;left:0;right:0;bottom:22px;height:42px;overflow:hidden;color:#8a8177;opacity:.3}
+.horizon pre{margin:0;font-size:9px;line-height:10.5px;font-family:"SF Mono",Menlo,monospace}
+.foot{position:absolute;left:36px;right:36px;bottom:8px;display:flex;justify-content:space-between;font-size:9px;color:#8a8177;letter-spacing:.1em}
+.dot{position:absolute;width:5px;height:5px;border-radius:50%;background:#b23a25;opacity:.8}
+</style></head><body>
+  <div class="seal serif">协</div>
+  <div class="brand serif">冒险者协会<small>ADVENTURERS GUILD</small></div>
+  <div class="eyebrow mono">PROTOCOL / NOT ORCHESTRATION</div>
+
+  <h1 class="serif">隔着八千公里</h1>
+  <div class="sub">调度解决不了它，协议才行</div>
+
+  <div class="node left"><div class="n">杭州</div><div class="d">ORION · runtime</div></div>
+  <div class="node right"><div class="n">悉尼</div><div class="d">WORKER · runtime</div></div>
+  <div class="dash"></div>
+  <div class="dot" style="left:193px;top:235px"></div>
+  <div class="dot" style="right:193px;top:235px"></div>
+  <div class="tag mono">90–120 ms · 异步</div>
+
+  <div class="horizon"><pre id="hz"></pre></div>
+  <div class="foot mono"><span>协议，不是调度</span><span>github.com/BrathonBai/adventurers-guild</span></div>
+<script>
+const g=['█','▓','▒','░'];let h=2166136261,out=[],lv=4;
+for(let c=0;c<220;c++){h=(Math.imul(h,1664525)+1013904223)>>>0;lv+=((h>>>16)%5)-2;lv=Math.max(1,Math.min(5,lv));out.push(lv)}
+let lines=[];for(let r=0;r<5;r++){let s='';for(const v of out){s+= (5-r)>v?' ':g[Math.min(3,Math.floor(v-(5-r)))]}lines.push(s)}
+document.getElementById('hz').textContent=lines.join('\n');
+</script>
+</body></html>
