@@ -1,15 +1,24 @@
+import { useEffect, useState } from 'react';
+import { GuildHall } from './components/GuildHall';
 import { GuildLedger } from './components/GuildLedger';
 
 /**
- * The public face of the guild is now a registry, not a dashboard: the thing a
- * visitor needs to answer first is "who is in here, and can I verify it?".
+ * The hall is the front door: commissions, arguments, people.
  *
- * Live snapshot wiring (`ui/lib/guildApi.ts`) is intentionally left out of this
- * shell until the identity v2 runtime lands — the demo data mirrors the shape
- * the API will return.
+ * Identity is deliberately quiet. It shows up as a tick next to a name and as
+ * an opt-in page at `#/registry` — infrastructure you can inspect, not the
+ * thing the product is about.
  */
 function App() {
-  return <GuildLedger />;
+  const [hash, setHash] = useState(() => window.location.hash);
+
+  useEffect(() => {
+    const sync = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
+  return hash.startsWith('#/registry') ? <GuildLedger /> : <GuildHall />;
 }
 
 export default App;
