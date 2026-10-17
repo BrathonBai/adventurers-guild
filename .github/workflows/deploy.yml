@@ -26,16 +26,16 @@ jobs:
       run: npm run build
     
     - name: Install server dependencies
-      run: cd server && npm ci
+      run: cd runtime && npm ci
     
     - name: Build server
-      run: cd server && npm run build
+      run: cd runtime && npm run build
     
     - name: Start server (background)
       run: |
-        cd server
-        nohup npm start > ../server.log 2>&1 &
-        echo $! > ../server.pid
+        cd runtime
+        nohup npm start > ../runtime.log 2>&1 &
+        echo $! > ../runtime.pid
         sleep 2
     
     - name: Wait for HTTP API
@@ -46,9 +46,9 @@ jobs:
             exit 0
           fi
 
-          if ! ps -p $(cat server.pid) > /dev/null; then
+          if ! ps -p $(cat runtime.pid) > /dev/null; then
             echo "❌ Server process exited before becoming ready"
-            cat server.log
+            cat runtime.log
             exit 1
           fi
 
@@ -57,7 +57,7 @@ jobs:
         done
 
         echo "❌ Timed out waiting for HTTP API"
-        cat server.log
+        cat runtime.log
         exit 1
 
     - name: Smoke test endpoints
@@ -75,12 +75,12 @@ jobs:
       if: always()
       run: |
         echo "=== Server Logs ==="
-        cat server.log
+        cat runtime.log
     
     - name: Stop server
       if: always()
       run: |
-        if [ -f server.pid ] && ps -p $(cat server.pid) > /dev/null; then
-          kill $(cat server.pid)
-          echo "Stopped server process $(cat server.pid)"
+        if [ -f runtime.pid ] && ps -p $(cat runtime.pid) > /dev/null; then
+          kill $(cat runtime.pid)
+          echo "Stopped server process $(cat runtime.pid)"
         fi
