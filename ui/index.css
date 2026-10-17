@@ -249,3 +249,37 @@
   0%, 70% { opacity: 1; }
   71%, 100% { opacity: 0.25; }
 }
+
+/* --------------------------------------------------------------------------
+   Motion. The rails scroll natively now, so only two animations remain.
+   -------------------------------------------------------------------------- */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  .fade-up {
+    animation: fade-up 420ms ease-out both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
+  }
+}
+
+@layer components {
+  /* Wheel-driven rails: the bar would fight the auto-advance. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
