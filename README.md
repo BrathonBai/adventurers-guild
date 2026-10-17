@@ -1,6 +1,6 @@
 # 冒险者协会 · Adventurers Guild
 
-> 一个给 Agent 发身份证的协会。人类与 Agent 在这里共同登记身份、签发授权、留下可验证的记录。
+一个给 Agent 发身份证的协会。人类和 Agent 在这里登记身份、签发授权，所有变更记进一本可验证的日志。
 
 ![协会公开名册](./docs/assets/ui-ledger.png)
 
@@ -8,43 +8,34 @@
 
 ## 为什么会有这个项目
 
-我有两台 MacBook，各自跑着一个独立的 Agent：**ORION** 负责产出，**BlogDev** 负责发布。
+我有两台 MacBook，各自跑着一个 Agent：ORION 负责产出，BlogDev 负责发布。
 
-现实是：ORION 写好的东西想交给 BlogDev 发，BlogDev 收到反馈又想告诉 ORION——每一次，都要我在两个终端之间来回搬运。
+ORION 写好的东西要交给 BlogDev 发，BlogDev 收到反馈又要告诉 ORION。每一次，都得我在两个终端之间来回搬运。
 
-这不是合作，这是**外包**。
+这不是合作，是外包。
 
-我最初以为难点是"怎么让它们说话"。做了一段时间才发现，真正的难点是另一件事：
-
-> **它们凭什么相信对方？**
-
-一个昵称背后可能是任何模型、任何版本、任何人。它说自己能干什么，全凭自述。出了事，聊天记录谁都能删。
+我最初以为难点是"怎么让它们说话"。做了一段时间发现，难的是另一件事：一个昵称背后可能是任何模型、任何版本、任何人；它说自己能干什么，全靠自述；出了事，聊天记录谁都能删。
 
 所以我停下来，先解决信任。
 
 ## 这是什么
 
-大多数人做 Agent 产品，解决的是"它能干什么"。这个项目解决的是"它凭什么被信任"。
+协会里的每个成员、每个 Agent、每台设备都有自己的私钥。授权由会员本人签发，协会只负责登记和查证。所有身份变更记进透明日志，任何人都能验证。
 
-协会里的每个成员、每个 Agent、每台设备都有自己的私钥。授权由会员本人签发，不是平台赐予。所有身份变更记入一本任何人都能验证的透明日志。
+一句话：域名是身份证号，签名是手印，日志保证没人能偷偷改。
 
-> **域名是身份证，签名是手印，透明日志保证没人能偷偷改。**
+## 这个项目不做什么
 
-## 它不是什么
+Agent 之间的广播网络已经有人在做：Agent 广播自己知道什么、需要什么，网络按语义匹配把相关内容推回来。那一层解决的是信息找不找得到。
 
-发现与广播这一层已经有人在认真做了：Agent 广播自己知道什么、需要什么、能做什么，网络按语义匹配再把相关内容推回来。那一层解决的是**信息找不找得到**。
-
-这个项目不碰那一层。它解决的是信息送到之后的事：
-
-> **这条广播是谁说的？他凭什么代表那个人说？出了事谁负责？**
+这个项目不碰那一层，做的是消息送到之后的事：这条消息是谁发的，他凭什么代表那个人，出了事谁负责。
 
 | 层 | 回答的问题 | 谁在做 |
 |---|---|---|
 | 通信 / 发现 | 谁知道什么，谁需要什么 | 广播网络、feed、匹配 |
-| **授权 / 问责** | **谁能代表谁，做过什么，出了事怎么查** | **这个项目** |
+| 授权 / 问责 | 谁能代表谁，做过什么，出了事怎么查 | 这个项目 |
 
-两层是叠加关系，不是竞争关系：广播层需要"可验证的授权"时可以接这里，这里需要"被更多人发现"时也可以接广播层。
-
+两层是叠加的：广播层需要可验证的授权时可以接 AG，AG 需要被更多人发现时也可以接广播层。
 
 ## 身份模型
 
@@ -58,11 +49,11 @@ DNS + TLS（域名控制权）
 
 三个设计决定：
 
-1. **只保留 `did:web`**。入会时分配一个路径式子域（`did:web:guild.example.com:alice`），域名就是身份证号。
-2. **授权用 W3C VC**，`issuer` 是会员而不是协会。协会从"发证机关"退成"名册"。
-3. **透明日志（RFC 6962 Merkle）**，每条变更由身份持有者自己签名，运营方伪造不了别人的记录。
+1. 只保留 `did:web`。入会时分配一个路径式子域（`did:web:guild.example.com:alice`），域名就是身份证号。
+2. 授权用 W3C VC，`issuer` 是会员而不是协会。协会从"发证机关"退成"名册"。
+3. 透明日志用 RFC 6962 Merkle 树。每条变更由身份持有者自己签名，运营方伪造不了别人的记录。
 
-诚实边界：域和文件目前由协会托管，所以这是 **tamper-evident（改了会被发现）**，不是 tamper-proof（改不了）。等成员自持域名或接入锚定后再升级。
+诚实边界：域和文件目前由协会托管，所以这是 tamper-evident（改了会被发现），不是 tamper-proof（改不了）。等成员自持域名或接入锚定后再升级。
 
 | 问题 | 旧做法 | 现在 |
 |---|---|---|
@@ -75,10 +66,10 @@ DNS + TLS（域名控制权）
 
 | 状态 | 内容 |
 |---|---|
-| ✅ 已完成 | Ed25519 签名内核、RFC 7638 指纹、RFC 6962 Merkle 日志、会员签名日志条目、65 条测试（含 RFC 8032 官方向量） |
-| ✅ 已完成 | 新版公开名册界面 |
-| 🚧 进行中 | `did:web` 发行与解析、`guildctl` 客户端 |
-| 📋 计划中 | 委派凭证签发、A2A 端点、设备双签名、透明日志锚定接口 |
+| 已完成 | Ed25519 签名内核、RFC 7638 指纹、RFC 6962 Merkle 日志、会员签名日志条目、65 条测试（含 RFC 8032 官方向量） |
+| 已完成 | 新版公开名册界面 |
+| 进行中 | `did:web` 发行与解析、`guildctl` 客户端 |
+| 计划中 | 委派凭证签发、A2A 端点、设备双签名、透明日志锚定接口 |
 
 v1 的 WebSocket 运行时（`runtime/`）还在，正在按 [决策记录](./docs/DECISIONS.md) 逐步迁移到 v2 身份模型。
 
@@ -164,10 +155,8 @@ MIT License，详见 [LICENSE](./LICENSE)。
 
 ## English
 
-**Adventurers Guild** is a community where humans and AI agents share one registry.
+Adventurers Guild is a community where humans and AI agents share one registry.
 
-Most agent products answer *what can it do*. This one answers *why should you trust it*: every member, agent and device holds its own key, delegations are W3C Verifiable Credentials issued by the member (not the platform), and every identity change lands in an RFC 6962 transparency log signed by its owner.
+Every member, agent and device holds its own key. Delegations are W3C Verifiable Credentials issued by the member rather than the platform, and every identity change lands in an RFC 6962 transparency log signed by its owner.
 
-> Domain as the ID number, signatures as the fingerprint, a transparency log so nobody can quietly rewrite history.
-
-The v2 identity work is in progress — see [DECISIONS.md](./docs/DECISIONS.md). Ed25519 signing, Merkle proofs and member-signed log entries are implemented and tested (65 tests, including RFC 8032 vectors).
+The v2 identity work is in progress; see [DECISIONS.md](./docs/DECISIONS.md). Ed25519 signing, Merkle proofs and member-signed log entries are implemented and tested (65 tests, including RFC 8032 vectors).
