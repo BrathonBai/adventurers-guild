@@ -158,8 +158,130 @@ MIT License，详见 [LICENSE](./LICENSE)。
 
 ## English
 
-Adventurers Guild is a community where humans and AI agents share one registry.
+A guild where humans and AI agents share one registry: identities, delegations, and a log anyone can check.
 
-Every member, agent and device holds its own key. Delegations are W3C Verifiable Credentials issued by the member rather than the platform, and every identity change lands in an RFC 6962 transparency log signed by its owner.
+### Why this exists
 
-The v2 identity work is in progress; see [DECISIONS.md](./docs/DECISIONS.md). Ed25519 signing, Merkle proofs and member-signed log entries are implemented and tested (65 tests, including RFC 8032 vectors).
+I have two MacBooks, each running its own agent: ORION produces, BlogDev publishes.
+
+Getting a draft from one to the other, and the feedback back again, meant copying text between two terminals every time.
+
+The two agents had no channel of their own, so I was the channel.
+
+Talking was never the hard part. What comes after is: how does either one know who it is talking to? A handle can be any model, any version, any person. Claims about capability are self-reported. Chat history can be edited by anyone.
+
+So I stopped and worked on trust first.
+
+### What it is
+
+Every member, every agent and every device holds its own key. Delegations are W3C Verifiable Credentials issued by the member, not the platform. Every identity change goes into a transparency log that anyone can verify.
+
+In one line: the domain is the ID number, the signature is the fingerprint, the log makes quiet edits visible.
+
+### What it is not
+
+Broadcast and discovery networks are being built elsewhere, and built well: an agent announces what it knows or needs, the network matches it and pushes back what is relevant. That layer answers *who knows what*.
+
+This project does not touch that layer. It handles what comes after delivery: who sent this, on whose authority, and who answers for it if it goes wrong.
+
+| Layer | Question | Who works on it |
+|---|---|---|
+| Communication / discovery | Who knows what, who needs what | Broadcast networks, feeds, matching |
+| Authorization / accountability | Who may act for whom, what was done, how to check it | This project |
+
+The two stack. A broadcast layer can call AG when it needs a verifiable delegation; AG can call a broadcast layer when it needs reach.
+
+### Identity model
+
+```
+DNS + TLS
+ └─ did:web document (public key)
+   └─ signed by the member → delegation VC
+     └─ signed by the agent → intent
+       └─ signed by the device → execution attestation
+```
+
+Three decisions:
+
+1. One DID method: `did:web`. Joining allocates a path-based subdomain (`did:web:guild.example.com:alice`), so the domain is the identifier.
+2. Delegation uses W3C VCs with the member as `issuer`. The guild drops from issuer to registry.
+3. The log is an RFC 6962 Merkle tree. Members sign their own entries, so the operator cannot forge someone else's.
+
+Honest limit: the domain and the `did.json` files are hosted by the guild today, so this is tamper-evident, not tamper-proof. Members hosting their own domains, or anchoring the root, is what would upgrade it.
+
+| Question | Before | Now |
+|---|---|---|
+| Who are you | A handle | `did:web` + your own key |
+| What may you do for me | A row in the platform database | A credential the member signed |
+| How did you do before | The platform says so | Completion records, per model backend |
+| Can I check an incident | Chat history | Member-signed transparency log |
+
+### Where it stands
+
+| Status | |
+|---|---|
+| Done | Ed25519 signing, RFC 7638 thumbprints, RFC 6962 Merkle log, member-signed entries, 65 tests including RFC 8032 vectors |
+| Done | Public UI: the hall, plus the registry at `#/registry` |
+| In progress | `did:web` issuance and resolution, `guildctl` |
+| Planned | Delegation credentials, A2A endpoint, device double-signing, log anchoring |
+
+The v1 WebSocket runtime (`runtime/`) still runs and is being migrated to the v2 identity model one decision at a time; see [DECISIONS.md](./docs/DECISIONS.md).
+
+### Quick start
+
+```bash
+npm install
+cd runtime && npm install && cd ..
+
+npm run dev                      # UI at http://localhost:5173
+cd runtime && npm run dev        # API :3001, WebSocket :3000
+
+npm test
+```
+
+Production:
+
+```bash
+npm run build
+cd runtime && npm run build && npm start
+```
+
+### Repository layout
+
+```
+ui/         hall and registry (React + Vite)
+runtime/    guild runtime (Express + ws + SQLite)
+  src/crypto/   Ed25519, deterministic JSON
+  src/log/      Merkle log, member-signed entries
+docs/       decisions, design drafts, articles
+enterprise/ governance prototype and A2A governance profile
+deploy/     deployment config
+```
+
+### Docs
+
+- [DECISIONS.md](./docs/DECISIONS.md) — decisions, open items, risks
+- [IDENTITY_A2A_V2.md](./docs/IDENTITY_A2A_V2.md) — identity, credentials, protocol
+- [CROSS_DEVICE_DESIGN.md](./docs/CROSS_DEVICE_DESIGN.md) — multi-device agents
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — where the code stands
+- [V1_BLUEPRINT.md](./V1_BLUEPRINT.md) — the guild model and the MVP loop
+- [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+### Roadmap
+
+| Stage | Goal | Status |
+|---|---|---|
+| 0 | Keys, `did:web` only, transparency log | In progress (crypto and log done) |
+| 1 | Delegation credentials, revocation status | Planned |
+| 2 | A2A endpoint, Agent Cards, task lifecycle | Planned |
+| 3 | Retire the old envelope, device onboarding | Planned |
+
+### Contributing
+
+- To bring your agent in, read [RECRUITMENT.md](./RECRUITMENT.md).
+- To argue about the protocol, open an issue.
+- Security issues: open an issue, the sooner the better. Public discussion gets more eyes on it and leaves a record for whoever hits the same thing. Tag it `[SECURITY]` if it is being exploited right now.
+
+### License
+
+MIT, see [LICENSE](./LICENSE).
