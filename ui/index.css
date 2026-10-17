@@ -3,25 +3,87 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   Adventurers Guild — "Public Ledger" design system
-   纸、墨、印。界面读起来应该像一本可以查证的名册，而不是一块仪表盘。
+   Adventurers Guild — "Terminal Register"
+   纸与终端之间的东西：等宽为骨，衬线为声，朱印为眼。
+   配色跟随系统；深色不是把浅色反过来，是把纸换成墨、把压痕换成扫描线。
    ========================================================================== */
 
 @layer base {
   :root {
-    --paper: #f6f3ec;
-    --paper-2: #fbf9f4;
-    --ink: #16120e;
-    --ink-60: #5c554c;
-    --ink-40: #8a8177;
-    --line: #e2dacb;
-    --line-strong: #cfc4b0;
+    color-scheme: light dark;
+
+    --paper: #f2eee4;
+    --paper-2: #fbf8f1;
+    --ink: #14110d;
+    --ink-70: #3d3830;
+    --ink-45: #7d7568;
+    --ink-30: #a49b8b;
+    --line: #d5ccba;
+    --line-soft: #e6dfd0;
+    --chip: #eae3d4;
     --seal: #b23a25;
-    --seal-soft: #f4e5e0;
+    --seal-ink: #fff6f2;
     --green: #2f5d46;
-    --green-soft: #e6efe9;
-    --amber: #9a6b1f;
-    --amber-soft: #f7efdd;
+    --amber: #8a6417;
+    --grain: rgba(0, 0, 0, 0.014);
+    --glow: transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0e0d0b;
+      --paper-2: #15130f;
+      --ink: #ece5d6;
+      --ink-70: #c6bead;
+      --ink-45: #8d8475;
+      --ink-30: #6b6355;
+      --line: #2c2823;
+      --line-soft: #201d19;
+      --chip: #1c1916;
+      --seal: #e2593f;
+      --seal-ink: #150806;
+      --green: #74c194;
+      --amber: #d8a648;
+      --grain: rgba(255, 255, 255, 0.012);
+      --glow: rgba(226, 89, 63, 0.06);
+    }
+  }
+
+  /* Manual override: ?theme=dark|light sets data-theme on <html>. */
+  :root[data-theme='dark'] {
+      --paper: #0e0d0b;
+      --paper-2: #15130f;
+      --ink: #ece5d6;
+      --ink-70: #c6bead;
+      --ink-45: #8d8475;
+      --ink-30: #6b6355;
+      --line: #2c2823;
+      --line-soft: #201d19;
+      --chip: #1c1916;
+      --seal: #e2593f;
+      --seal-ink: #150806;
+      --green: #74c194;
+      --amber: #d8a648;
+      --grain: rgba(255, 255, 255, 0.012);
+      --glow: rgba(226, 89, 63, 0.06);
+  }
+
+  :root[data-theme='light'] {
+    --paper: #f2eee4;
+    --paper-2: #fbf8f1;
+    --ink: #14110d;
+    --ink-70: #3d3830;
+    --ink-45: #7d7568;
+    --ink-30: #a49b8b;
+    --line: #d5ccba;
+    --line-soft: #e6dfd0;
+    --chip: #eae3d4;
+    --seal: #b23a25;
+    --seal-ink: #fff6f2;
+    --green: #2f5d46;
+    --amber: #8a6417;
+    --grain: rgba(0, 0, 0, 0.014);
+    --glow: transparent;
   }
 
   * {
@@ -34,23 +96,27 @@
     height: 100%;
   }
 
+  /* The hero rule deliberately bleeds past the container; clip it here so it
+     never widens the document on narrow screens. */
+  body {
+    overflow-x: hidden;
+  }
+
   body {
     margin: 0;
     background-color: var(--paper);
     background-image:
-      radial-gradient(at 12% 0%, rgba(178, 58, 37, 0.05) 0px, transparent 45%),
-      radial-gradient(at 92% 6%, rgba(47, 93, 70, 0.05) 0px, transparent 42%),
-      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.012) 0 1px, transparent 1px 3px);
+      radial-gradient(60% 40% at 8% -10%, var(--glow) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, var(--grain) 0 1px, transparent 1px 3px);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
       'Microsoft YaHei', sans-serif;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
   ::selection {
     background: var(--seal);
-    color: #fff;
+    color: var(--seal-ink);
   }
 
   ::-webkit-scrollbar {
@@ -61,7 +127,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--line-strong);
+    background: var(--line);
     border: 3px solid var(--paper);
     border-radius: 999px;
   }
@@ -71,27 +137,21 @@
   .serif {
     font-family: 'Songti SC', 'Source Han Serif SC', 'Noto Serif CJK SC', Georgia, 'Times New Roman', serif;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
 
   .mono {
-    font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
     font-variant-ligatures: none;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   .eyebrow {
-    font-size: 11px;
-    letter-spacing: 0.18em;
+    font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--ink-40);
-    font-weight: 600;
-  }
-
-  .card {
-    background: var(--paper-2);
-    border: 1px solid var(--line);
-    border-radius: 3px;
+    color: var(--ink-45);
   }
 
   .rule {
@@ -99,58 +159,93 @@
     background: var(--line);
   }
 
-  .stamp {
+  .hair {
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    color: var(--ink-70);
+    background: transparent;
+  }
+
+  .chip-seal {
+    color: var(--seal);
+    border-color: color-mix(in srgb, var(--seal) 45%, transparent);
+    background: color-mix(in srgb, var(--seal) 8%, transparent);
+  }
+
+  .chip-green {
+    color: var(--green);
+    border-color: color-mix(in srgb, var(--green) 40%, transparent);
+    background: color-mix(in srgb, var(--green) 8%, transparent);
+  }
+
+  .chip-amber {
+    color: var(--amber);
+    border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+    background: color-mix(in srgb, var(--amber) 8%, transparent);
+  }
+
+  .seal-mark {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1.5px solid var(--seal);
+    border: 2px solid var(--seal);
     color: var(--seal);
     border-radius: 2px;
-    padding: 2px 7px;
-    font-size: 11px;
     font-weight: 700;
+    letter-spacing: 0.14em;
+    transform: rotate(-7deg);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seal) 30%, transparent);
+  }
+
+  .ticket {
+    background:
+      radial-gradient(circle at 0 50%, var(--paper) 0 6px, transparent 6px),
+      radial-gradient(circle at 100% 50%, var(--paper) 0 6px, transparent 6px),
+      var(--paper-2);
+    border: 1px solid var(--line);
+  }
+
+  .ascii-rule {
+    font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    color: var(--ink-30);
     letter-spacing: 0.08em;
-    transform: rotate(-4deg);
-    opacity: 0.9;
-  }
-
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    border-radius: 999px;
-    padding: 2px 9px;
-    font-size: 11px;
-    font-weight: 600;
-    border: 1px solid transparent;
     white-space: nowrap;
-  }
-
-  .pill-green {
-    background: var(--green-soft);
-    color: var(--green);
-    border-color: rgba(47, 93, 70, 0.18);
-  }
-  .pill-red {
-    background: var(--seal-soft);
-    color: var(--seal);
-    border-color: rgba(178, 58, 37, 0.2);
-  }
-  .pill-amber {
-    background: var(--amber-soft);
-    color: var(--amber);
-    border-color: rgba(154, 107, 31, 0.2);
-  }
-  .pill-ink {
-    background: #efeae0;
-    color: var(--ink-60);
-    border-color: var(--line);
+    overflow: hidden;
+    user-select: none;
   }
 
   .dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 999px;
     background: currentColor;
   }
+
+  .vtext {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .blink {
+    animation: blink 2.4s steps(1, end) infinite;
+  }
+}
+
+@keyframes blink {
+  0%, 70% { opacity: 1; }
+  71%, 100% { opacity: 0.25; }
 }
