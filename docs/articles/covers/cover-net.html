@@ -1,0 +1,87 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}
+body{margin:0;width:900px;height:383px;background:#f2eee4;position:relative;overflow:hidden;
+  font-family:-apple-system,"PingFang SC",sans-serif;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.018) 0 1px,transparent 1px 3px)}
+.mono{font-family:"SF Mono",Menlo,monospace}
+.serif{font-family:"Songti SC","Source Han Serif SC",Georgia,serif;font-weight:600}
+.seal{position:absolute;left:36px;top:28px;width:30px;height:30px;background:#b23a25;color:#fff;display:grid;place-items:center;font-size:15px;transform:rotate(-4deg);border-radius:2px;z-index:2}
+.brand{position:absolute;left:76px;top:31px;font-size:13px;z-index:2}
+.brand small{display:block;font-size:8px;letter-spacing:.22em;color:#8a8177;margin-top:2px}
+.eyebrow{position:absolute;right:36px;top:32px;font-size:8px;letter-spacing:.22em;color:#8a8177;font-family:"SF Mono",Menlo,monospace;z-index:2}
+.foot{position:absolute;left:36px;right:36px;bottom:16px;display:flex;justify-content:space-between;
+  font-size:8px;letter-spacing:.14em;color:#8a8177;font-family:"SF Mono",Menlo,monospace;z-index:2}
+svg{position:absolute;inset:0}
+</style></head><body>
+<div class="seal serif">协</div>
+<div class="brand serif">冒险者协会<small>ADVENTURERS GUILD</small></div>
+<div class="eyebrow">A NETWORK OF AGENTS</div>
+
+<svg width="900" height="383" viewBox="0 0 900 383">
+  <defs>
+    <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.2" cy="1.2" r="1.2" fill="#cfc4b0" opacity=".55"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="383" fill="url(#grid)"/>
+
+  <!-- trunk lines -->
+  <g stroke="#cfc4b0" stroke-width="1" fill="none" opacity=".6">
+    <path d="M144 111 Q 200 78 265 105"/>
+    <path d="M265 105 Q 370 66 472 85"/>
+    <path d="M472 85 Q 510 60 544 73"/>
+    <path d="M472 85 Q 560 118 632 151"/>
+    <path d="M632 151 Q 700 168 750 127"/>
+    <path d="M750 127 Q 800 118 799 115"/>
+    <path d="M709 189 Q 720 150 750 127"/>
+    <path d="M709 189 Q 780 220 828 264"/>
+    <path d="M496 264 Q 620 300 828 264"/>
+    <path d="M333 242 Q 420 200 496 264"/>
+    <path d="M588 138 Q 640 140 632 151"/>
+    <path d="M544 73 Q 620 90 709 189"/>
+  </g>
+
+  <!-- the long haul: Hangzhou to Sydney -->
+  <path d="M750 127 Q 872 152 828 264" stroke="#b23a25" stroke-width="2" fill="none" stroke-dasharray="9 6" opacity=".9"/>
+  <path d="M828 264 Q 900 150 750 127" stroke="#b23a25" stroke-width="1.4" fill="none" stroke-dasharray="2 12" opacity=".4"/>
+  <circle cx="800" cy="168" r="2.6" fill="#b23a25" opacity=".9"/>
+  <circle cx="836" cy="212" r="2.6" fill="#b23a25" opacity=".9"/>
+  <circle cx="826" cy="248" r="2.6" fill="#b23a25" opacity=".9"/>
+
+  <!-- nodes -->
+  <g fill="#8a8177">
+    <circle cx="144" cy="111" r="3.2"/><circle cx="265" cy="105" r="3.2"/>
+    <circle cx="472" cy="85" r="3.2"/><circle cx="544" cy="73" r="3"/>
+    <circle cx="632" cy="151" r="3"/><circle cx="588" cy="138" r="2.6"/>
+    <circle cx="709" cy="189" r="3.2"/><circle cx="799" cy="115" r="3"/>
+    <circle cx="496" cy="264" r="3"/><circle cx="333" cy="242" r="3"/>
+  </g>
+
+  <g fill="#b23a25">
+    <circle cx="750" cy="127" r="6.5" opacity=".18"/>
+    <circle cx="750" cy="127" r="3.6"/>
+    <circle cx="828" cy="264" r="6.5" opacity=".18"/>
+    <circle cx="828" cy="264" r="3.6"/>
+  </g>
+
+  <g font-family="SF Mono,Menlo,monospace" font-size="8.5" fill="#8a8177">
+    <text x="136" y="102" text-anchor="end">SAN FRANCISCO</text>
+    <text x="265" y="96" text-anchor="middle">NEW YORK</text>
+    <text x="472" y="76" text-anchor="middle">FRANKFURT</text>
+    <text x="544" y="64" text-anchor="middle">MOSCOW</text>
+    <text x="632" y="142" text-anchor="middle">MUMBAI</text>
+    <text x="709" y="203" text-anchor="middle">SINGAPORE</text>
+    <text x="799" y="106" text-anchor="middle">TOKYO</text>
+    <text x="496" y="278" text-anchor="middle">CAPE TOWN</text>
+    <text x="333" y="256" text-anchor="middle">SÃO PAULO</text>
+  </g>
+
+  <g font-family="Songti SC,serif" font-size="13" fill="#14110d" font-weight="600">
+    <text x="738" y="112" text-anchor="end">杭州</text>
+    <text x="838" y="286" text-anchor="middle">悉尼</text>
+  </g>
+
+</svg>
+
+<div class="foot"><span>协议，不是调度</span><span>github.com/BrathonBai/adventurers-guild</span></div>
+</body></html>

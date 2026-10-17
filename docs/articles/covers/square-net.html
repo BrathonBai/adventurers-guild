@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}
+body{margin:0;width:500px;height:500px;background:#f2eee4;position:relative;overflow:hidden;
+  font-family:-apple-system,"PingFang SC",sans-serif;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.018) 0 1px,transparent 1px 3px)}
+.serif{font-family:"Songti SC","Source Han Serif SC",Georgia,serif;font-weight:600}
+.mono{font-family:"SF Mono",Menlo,monospace}
+.seal{position:absolute;left:34px;top:32px;width:32px;height:32px;background:#b23a25;color:#fff;display:grid;place-items:center;font-size:16px;transform:rotate(-4deg);border-radius:2px;z-index:2}
+.brand{position:absolute;left:78px;top:34px;font-size:14px;z-index:2}
+.brand small{display:block;font-size:8px;letter-spacing:.22em;color:#8a8177;margin-top:2px}
+.foot{position:absolute;left:34px;bottom:28px;font-size:10px;letter-spacing:.16em;color:#8a8177;font-family:"SF Mono",Menlo,monospace}
+svg{position:absolute;inset:0}
+</style></head><body>
+<div class="seal serif">协</div>
+<div class="brand serif">冒险者协会<small>ADVENTURERS GUILD</small></div>
+<svg width="500" height="500" viewBox="0 0 500 500">
+  <defs><pattern id="g2" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1.1" cy="1.1" r="1.1" fill="#cfc4b0" opacity=".55"/></pattern></defs>
+  <rect width="500" height="500" fill="url(#g2)"/>
+
+  <g stroke="#cfc4b0" stroke-width="1" fill="none" opacity=".6">
+    <path d="M80 150 Q 150 120 220 170"/>
+    <path d="M220 170 Q 260 230 200 300"/>
+    <path d="M200 300 Q 140 380 90 420"/>
+    <path d="M220 170 Q 300 190 340 150"/>
+  </g>
+  <path d="M340 150 Q 470 270 360 390" stroke="#b23a25" stroke-width="2" fill="none" stroke-dasharray="9 6" opacity=".9"/>
+  <circle cx="418" cy="232" r="2.6" fill="#b23a25" opacity=".9"/>
+  <circle cx="440" cy="300" r="2.6" fill="#b23a25" opacity=".9"/>
+
+  <g fill="#8a8177">
+    <circle cx="80" cy="150" r="3.2"/><circle cx="220" cy="170" r="3"/><circle cx="200" cy="300" r="3"/><circle cx="90" cy="420" r="3"/>
+  </g>
+  <g fill="#b23a25">
+    <circle cx="340" cy="150" r="8" opacity=".16"/><circle cx="340" cy="150" r="4"/>
+    <circle cx="360" cy="390" r="8" opacity=".16"/><circle cx="360" cy="390" r="4"/>
+  </g>
+  <g font-family="Songti SC,serif" font-size="15" fill="#14110d" font-weight="600">
+    <text x="328" y="140" text-anchor="end">杭州</text>
+    <text x="372" y="412" text-anchor="start">悉尼</text>
+  </g>
+</svg>
+<div class="foot">协议，不是调度</div>
+</body></html>
