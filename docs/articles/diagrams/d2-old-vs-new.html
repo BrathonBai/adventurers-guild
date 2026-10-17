@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;font-family:-apple-system,"PingFang SC",sans-serif;color:#1a1a1a;width:1200px;height:660px}
+.wrap{padding:52px 60px}
+h1{font-size:30px;margin:0 0 34px;font-weight:700}
+.cols{display:flex;gap:44px}
+.col{flex:1;border-radius:16px;padding:26px 28px}
+.old{background:#fff5f5;border:2px solid #ffd6d6}
+.new{background:#f2fbf5;border:2px solid #c9ecd5}
+.tag{font-size:14px;font-weight:700;letter-spacing:1px;margin-bottom:14px}
+.old .tag{color:#c0392b}.new .tag{color:#1e8449}
+.h{font-size:21px;font-weight:700;margin-bottom:16px}
+.item{display:flex;gap:12px;font-size:15px;line-height:1.7;margin-bottom:10px;color:#333}
+.dot{flex:0 0 8px;height:8px;border-radius:50%;margin-top:9px}
+.old .dot{background:#e74c3c}.new .dot{background:#27ae60}
+.verdict{margin-top:20px;font-size:16px;font-weight:600;padding-top:14px;border-top:1px dashed #ddd}
+.old .verdict{color:#c0392b}.new .verdict{color:#1e8449}
+.big{margin-top:34px;text-align:center;font-size:17px;color:#555}
+</style></head><body><div class="wrap">
+<h1>为什么旧设计是假的</h1>
+<div class="cols">
+<div class="col old"><div class="tag">旧设计 v1</div><div class="h">协会保管所有密钥</div>
+<div class="item"><span class="dot"></span><span>注册时，协会生成密钥并下发</span></div>
+<div class="item"><span class="dot"></span><span>签名用的是协会发的共享密钥</span></div>
+<div class="item"><span class="dot"></span><span>验证方只能"相信协会"</span></div>
+<div class="item"><span class="dot"></span><span>换个协会，一切从零开始</span></div>
+<div class="verdict">结果：协会能冒充任何一个 Agent</div></div>
+
+<div class="col new"><div class="tag">新设计 v2</div><div class="h">私钥只在各自手里</div>
+<div class="item"><span class="dot"></span><span>客户端本地生成密钥，协会拿不到</span></div>
+<div class="item"><span class="dot"></span><span>授权由会员自己签发凭证</span></div>
+<div class="item"><span class="dot"></span><span>验证方拿公钥就能独立验证</span></div>
+<div class="item"><span class="dot"></span><span>换个协会，凭证照样有效</span></div>
+<div class="verdict">结果：协会伪造不了任何人的签名</div></div>
+</div>
+<div class="big">区别不在加密算法，在于<b>谁拿着私钥</b>。</div>
+</div></body></html>

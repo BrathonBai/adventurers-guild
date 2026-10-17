@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;font-family:-apple-system,"PingFang SC",sans-serif;color:#1a1a1a;width:1200px;height:820px}
+.wrap{padding:54px 64px}
+h1{font-size:30px;margin:0 0 8px;font-weight:700}
+.sub{font-size:16px;color:#777;margin-bottom:34px}
+.b{position:relative;border:2px solid #dcdcdc;border-radius:12px;padding:16px 210px 16px 22px;background:#fafafa;margin:0}
+.b .t{font-size:19px;font-weight:600}
+.b .d{font-size:14px;color:#666;margin-top:5px}
+.badge{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:600;color:#0b6bcb;background:#eaf2ff;border-radius:999px;padding:6px 14px;white-space:nowrap}
+.hl{border-color:#0b6bcb;background:#f2f8ff}
+.arrow{text-align:center;color:#c3c3c3;font-size:18px;line-height:26px;margin:2px 0}
+.note{margin-top:22px;font-size:14px;color:#888;border-left:4px solid #eee;padding-left:12px;line-height:1.7}
+</style></head><body><div class="wrap">
+<h1>一条可验证的信任链</h1>
+<div class="sub">每一层都由上一层的私钥签名，所以每一层都能被别人独立验证</div>
+<div class="b"><div class="t">DNS + TLS</div><div class="d">你控制一个域名，并且能在上面发布 HTTPS 内容</div><div class="badge">域名持有者</div></div>
+<div class="arrow">↓</div>
+<div class="b"><div class="t">did:web 文档</div><div class="d">域名下的一份 JSON，里面是公钥</div><div class="badge">域名的持有者</div></div>
+<div class="arrow">↓</div>
+<div class="b hl"><div class="t">委派凭证 VC</div><div class="d">"我授权它代表我做这些事，到这天为止"</div><div class="badge">会员（人）签名</div></div>
+<div class="arrow">↓</div>
+<div class="b hl"><div class="t">意图</div><div class="d">"我决定这么做，我为这个决定负责"</div><div class="badge">Agent 签名</div></div>
+<div class="arrow">↓</div>
+<div class="b hl"><div class="t">执行证明</div><div class="d">"我在场，我执行了，结果是这个"</div><div class="badge">设备签名</div></div>
+<div class="note">越往下，签名的东西越具体：人负责授权，Agent 负责决定，设备负责证明"真的发生了"。</div>
+</div></body></html>

@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;width:1200px;height:660px;font-family:-apple-system,"PingFang SC",sans-serif}
+.wrap{padding:50px 60px}
+h1{font-size:30px;margin:0 0 8px;font-weight:700;color:#1a1a1a}
+.sub{font-size:16px;color:#777;margin-bottom:26px}
+</style></head><body><div class="wrap">
+<h1>透明日志：改一页，后面全对不上</h1>
+<div class="sub">每条身份变更都是会员签名的，运营方只负责排序和出证明</div>
+<svg width="1080" height="430" viewBox="0 0 1080 430" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,PingFang SC,sans-serif">
+  <g stroke="#cfd6e0" stroke-width="2" fill="none">
+    <path d="M75 64 V92 H245 V120"/><path d="M245 64 V92"/>
+    <path d="M415 64 V92 H585 V120"/><path d="M585 64 V92"/>
+    <path d="M160 184 V212 H500 V240"/><path d="M500 184 V212"/>
+  </g>
+  <g stroke="#0b6bcb" stroke-width="3" fill="none">
+    <path d="M75 64 V92 H160 V120"/>
+  </g>
+  <g fill="#f4f7fb" stroke="#cfdcee" stroke-width="2">
+    <rect x="0" y="0" width="150" height="64" rx="10"/><rect x="170" y="0" width="150" height="64" rx="10"/>
+    <rect x="340" y="0" width="150" height="64" rx="10"/><rect x="510" y="0" width="150" height="64" rx="10"/>
+  </g>
+  <g fill="#2c3e50" font-size="14" text-anchor="middle">
+    <text x="75" y="26" font-weight="700">#1</text><text x="75" y="46">alice 注册公钥</text>
+    <text x="245" y="26" font-weight="700">#2</text><text x="245" y="46">bob 注册公钥</text>
+    <text x="415" y="26" font-weight="700">#3</text><text x="415" y="46">alice 换钥匙</text>
+    <text x="585" y="26" font-weight="700">#4</text><text x="585" y="46">orion 注册</text>
+  </g>
+  <rect x="20" y="120" width="280" height="64" rx="10" fill="#eef4ff" stroke="#0b6bcb" stroke-width="2"/>
+  <text x="160" y="158" font-size="15" font-weight="600" fill="#0b4c8c" text-anchor="middle">hash(#1, #2)</text>
+  <rect x="360" y="120" width="280" height="64" rx="10" fill="#f7f9fc" stroke="#cfd6e0" stroke-width="2"/>
+  <text x="500" y="158" font-size="15" font-weight="600" fill="#5b6b7c" text-anchor="middle">hash(#3, #4)</text>
+  <rect x="170" y="240" width="320" height="64" rx="10" fill="#eef4ff" stroke="#0b6bcb" stroke-width="2"/>
+  <text x="330" y="278" font-size="16" font-weight="700" fill="#0b4c8c" text-anchor="middle">树根 Root</text>
+  <path d="M330 304 V330" stroke="#0b6bcb" stroke-width="3"/>
+  <rect x="170" y="330" width="320" height="56" rx="10" fill="#0b6bcb"/>
+  <text x="330" y="364" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">对外公布的根哈希</text>
+  <path d="M490 358 H790" stroke="#d9a441" stroke-width="2" stroke-dasharray="7 6"/>
+  <rect x="790" y="316" width="280" height="86" rx="10" fill="#fff8e8" stroke="#d9a441" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="930" y="344" font-size="14" font-weight="700" fill="#8a5a00" text-anchor="middle">以后可选：写进公链</text>
+  <text x="930" y="368" font-size="13" fill="#a07a1e" text-anchor="middle">现在只留接口，不花钱</text>
+  <text x="930" y="390" font-size="13" fill="#a07a1e" text-anchor="middle">（不是必须）</text>
+  <text x="70" y="418" font-size="13" fill="#0b6bcb">↑ 蓝色 = alice 的"存在性证明"：它 + 根哈希，任何人都能验证 #1 确实在册</text>
+</svg>
+</div></body></html>
