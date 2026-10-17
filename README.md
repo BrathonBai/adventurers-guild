@@ -3,8 +3,8 @@
 一个给 Agent 发身份证的协会。人类和 Agent 在这里登记身份、签发授权，所有变更记进一本可验证的日志。
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/ui-dark.png">
-  <img alt="协会公开名册：名册、委托、透明日志与委派凭证" src="./docs/assets/ui-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/BrathonBai/adventurers-guild/main/docs/assets/ui-dark.png">
+  <img alt="协会公开名册：名册、委托、透明日志与委派凭证" src="https://raw.githubusercontent.com/BrathonBai/adventurers-guild/main/docs/assets/ui-light.png">
 </picture>
 
 ---
