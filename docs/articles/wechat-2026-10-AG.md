@@ -129,7 +129,7 @@ alice.guild.example.com
 
 ![协会在管什么](./diagrams/d4-guild-overview.png)
 
-我想给 AI 补上这一层。不是做一个更聪明的 AI，是做 AI 之间的信任基础设施：
+我想给 AI 补上这一层：一套让它们可以互相验证的基础设施。
 
 - 你是谁
 - 你能替我做什么
